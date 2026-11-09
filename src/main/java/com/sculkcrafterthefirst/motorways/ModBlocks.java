@@ -1,6 +1,7 @@
-  package com.sculkcrafterthefirst.motorways;
+package com.sculkcrafterthefirst.motorways;
 
 import net.minecraft.world.level.block.state.BlockBehaviour;
+
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -9,4 +10,7 @@ public class ModBlocks {
 
     public static final DeferredBlock<RoadNodeBlock> ROAD_NODE = BLOCKS.register("road_node",
             () -> new RoadNodeBlock(BlockBehaviour.Properties.of().noOcclusion().strength(1.0F)));
+
+    public static final DeferredBlock<RoadSegmentBlock> ROAD_SEGMENT = BLOCKS.register("road_segment",
+            () -> new RoadSegmentBlock(BlockBehaviour.Properties.of().noOcclusion().strength(1.0F)));
 }
