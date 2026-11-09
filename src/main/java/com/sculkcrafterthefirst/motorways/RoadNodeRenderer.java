@@ -62,6 +62,8 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
         VertexConsumer c = buffer.getBuffer(RenderType.solid());
         PoseStack.Pose pose = poseStack.last();
 
+        int seed = be.getBlockPos().hashCode();
+        
         for (int i = 0; i < curve.count - 1; i++) {
             int j = i + 1;
             float pxi = -curve.tz[i];
@@ -69,11 +71,16 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
             float pxj = -curve.tz[j];
             float pzj = curve.tx[j];
 
-            // Oberseite: pro Block eine Kachel
+            // Oberseite: pro Block eine Kachel, zufällig gedreht
             for (int k = 0; k < width; k++) {
                 float a0 = -half + k;
                 float a1 = a0 + 1;
-                quad(c, pose, light, 0, 1, 0, u0, u1, v0, v1,
+                int hash = (seed * 31 + i) * 31 + k;
+                hash ^= hash >>> 15;
+                hash *= 0x2c1b3c6d;
+                hash ^= hash >>> 12;
+                int rot = hash & 3;
+                quadRot(c, pose, light, rot, 0, 1, 0, u0, u1, v0, v1,
                         curve.x[i] + pxi * a0, curve.y[i] + h, curve.z[i] + pzi * a0,
                         curve.x[i] + pxi * a1, curve.y[i] + h, curve.z[i] + pzi * a1,
                         curve.x[j] + pxj * a1, curve.y[j] + h, curve.z[j] + pzj * a1,
@@ -131,6 +138,33 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
         vertex(c, pose, x2, y2, z2, u1, v1, light, -nx, -ny, -nz);
         vertex(c, pose, x1, y1, z1, u1, v0, light, -nx, -ny, -nz);
         vertex(c, pose, x0, y0, z0, u0, v0, light, -nx, -ny, -nz);
+    }
+
+        private static void quadRot(VertexConsumer c, PoseStack.Pose pose, int light, int rot,
+                                float nx, float ny, float nz,
+                                float u0, float u1, float v0, float v1,
+                                float x0, float y0, float z0, float x1, float y1, float z1,
+                                float x2, float y2, float z2, float x3, float y3, float z3) {
+        int i0 = rot & 3;
+        int i1 = (rot + 1) & 3;
+        int i2 = (rot + 2) & 3;
+        int i3 = (rot + 3) & 3;
+        vertex(c, pose, x0, y0, z0, cornerU(i0, u0, u1), cornerV(i0, v0, v1), light, nx, ny, nz);
+        vertex(c, pose, x1, y1, z1, cornerU(i1, u0, u1), cornerV(i1, v0, v1), light, nx, ny, nz);
+        vertex(c, pose, x2, y2, z2, cornerU(i2, u0, u1), cornerV(i2, v0, v1), light, nx, ny, nz);
+        vertex(c, pose, x3, y3, z3, cornerU(i3, u0, u1), cornerV(i3, v0, v1), light, nx, ny, nz);
+        vertex(c, pose, x3, y3, z3, cornerU(i3, u0, u1), cornerV(i3, v0, v1), light, -nx, -ny, -nz);
+        vertex(c, pose, x2, y2, z2, cornerU(i2, u0, u1), cornerV(i2, v0, v1), light, -nx, -ny, -nz);
+        vertex(c, pose, x1, y1, z1, cornerU(i1, u0, u1), cornerV(i1, v0, v1), light, -nx, -ny, -nz);
+        vertex(c, pose, x0, y0, z0, cornerU(i0, u0, u1), cornerV(i0, v0, v1), light, -nx, -ny, -nz);
+    }
+
+    private static float cornerU(int idx, float u0, float u1) {
+        return (idx == 1 || idx == 2) ? u1 : u0;
+    }
+
+    private static float cornerV(int idx, float v0, float v1) {
+        return idx >= 2 ? v1 : v0;
     }
 
     private static void vertex(VertexConsumer c, PoseStack.Pose pose, float x, float y, float z,
