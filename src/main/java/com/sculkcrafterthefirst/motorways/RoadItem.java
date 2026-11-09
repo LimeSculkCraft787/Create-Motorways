@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 public class RoadItem extends Item {
     private final int width;
@@ -58,6 +59,7 @@ public class RoadItem extends Item {
         boolean onNode = level.getBlockState(clicked).is(ModBlocks.ROAD_NODE.get());
         BlockPos node = onNode ? clicked : clicked.above();
         double[] look = snappedLook(player);
+        Vec3 loc = context.getClickLocation();
 
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
 
@@ -67,28 +69,30 @@ public class RoadItem extends Item {
                 msg(player, "Hier ist kein Platz");
                 return InteractionResult.SUCCESS;
             }
-            int nodeWidth = RoadPlanner.nodeWidth(level, node);
-            if (nodeWidth != 0 && nodeWidth != width) {
-                msg(player, "Breite passt nicht zur bestehenden Straße");
+            RoadPlanner.Anchor anchor = RoadPlanner.startAnchor(level, width, node,
+                    look[0], look[1], loc.x, loc.z);
+            if (!anchor.ok()) {
+                msg(player, anchor.message());
                 return InteractionResult.SUCCESS;
             }
-            double[] dir = RoadPlanner.startDirection(level, node, look[0], look[1]);
             CompoundTag t = new CompoundTag();
             t.putInt("StartX", node.getX());
             t.putInt("StartY", node.getY());
             t.putInt("StartZ", node.getZ());
-            t.putDouble("DirX", dir[0]);
-            t.putDouble("DirZ", dir[1]);
+            t.putDouble("DirX", anchor.dx());
+            t.putDouble("DirZ", anchor.dz());
+            t.putDouble("StartOff", anchor.offset());
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(t));
             msg(player, "Startpunkt gesetzt: " + node.getX() + " " + node.getY() + " " + node.getZ()
-                    + " (Breite " + width + ")");
+                    + " (Breite " + width + (anchor.offset() != 0 ? ", Spur der Doppelstraße" : "") + ")");
             return InteractionResult.SUCCESS;
         }
 
         // zweiter Klick
         BlockPos startPos = new BlockPos(tag.getInt("StartX"), tag.getInt("StartY"), tag.getInt("StartZ"));
         RoadPlanner.Plan plan = RoadPlanner.plan(level, width, startPos,
-                tag.getDouble("DirX"), tag.getDouble("DirZ"), node, look[0], look[1]);
+                tag.getDouble("DirX"), tag.getDouble("DirZ"), tag.getDouble("StartOff"),
+                node, look[0], look[1], loc.x, loc.z);
         if (!plan.ok()) {
             msg(player, plan.message());
             return InteractionResult.SUCCESS;
@@ -101,7 +105,8 @@ public class RoadItem extends Item {
             level.setBlock(node, ModBlocks.ROAD_NODE.get().defaultBlockState(), 3);
         }
         if (level.getBlockEntity(startPos) instanceof RoadNodeBlockEntity startBe) {
-            startBe.addRoad(node, width, plan.sdx(), plan.sdz(), plan.edx(), plan.edz());
+            startBe.addRoad(node, width, plan.sdx(), plan.sdz(), plan.edx(), plan.edz(),
+                    plan.so(), plan.eo());
         }
         if (level.getBlockEntity(node) instanceof RoadNodeBlockEntity endBe) {
             endBe.addIncoming(startPos);
