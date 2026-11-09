@@ -18,7 +18,7 @@ import net.minecraft.world.phys.AABB;
 public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity> {
     private static final float HEIGHT = 5f / 16f;
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.withDefaultNamespace("block/gray_concrete");
+            ResourceLocation.withDefaultNamespace("block/asphalt");
 
     public RoadNodeRenderer(BlockEntityRendererProvider.Context context) {
     }
