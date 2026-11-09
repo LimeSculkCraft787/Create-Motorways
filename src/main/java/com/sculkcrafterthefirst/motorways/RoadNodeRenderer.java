@@ -2,7 +2,6 @@ package com.sculkcrafterthefirst.motorways;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -30,85 +29,100 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
             return new AABB(pos.getX(), pos.getY(), pos.getZ(),
                     pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
         }
-        return new AABB(pos.getX(), pos.getY(), pos.getZ(),
-                target.getX() + 1, target.getY() + 1, target.getZ() + 1).inflate(7);
+        double dx = target.getX() - pos.getX();
+        double dz = target.getZ() - pos.getZ();
+        double margin = 0.4 * Math.sqrt(dx * dx + dz * dz) + 7;
+        return new AABB(
+                Math.min(pos.getX(), target.getX()), Math.min(pos.getY(), target.getY()),
+                Math.min(pos.getZ(), target.getZ()),
+                Math.max(pos.getX(), target.getX()) + 1, Math.max(pos.getY(), target.getY()) + 1,
+                Math.max(pos.getZ(), target.getZ()) + 1).inflate(margin);
     }
 
     @Override
     public void render(RoadNodeBlockEntity be, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffer, int light, int overlay) {
-        BlockPos target = be.getTarget();
-        if (target == null) {
-            return;
-        }
-        BlockPos pos = be.getBlockPos();
-
-        float dx = target.getX() - pos.getX();
-        float dy = target.getY() - pos.getY();
-        float dz = target.getZ() - pos.getZ();
-        float len = (float) Math.sqrt(dx * dx + dz * dz);
-        if (len < 0.01f) {
+        RoadCurve curve = be.getCurve();
+        if (curve == null) {
             return;
         }
 
-        float ux = dx / len;
-        float uz = dz / len;
-        float half = be.getWidth() / 2.0f;
-        float px = -uz * half;
-        float pz = ux * half;
-
-        float sx = 0.5f;
-        float sz = 0.5f;
-        float ex = dx + 0.5f;
-        float ez = dz + 0.5f;
+        int width = be.getWidth();
+        float half = width / 2.0f;
         float h = HEIGHT;
 
         TextureAtlasSprite sprite = Minecraft.getInstance()
                 .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(TEXTURE);
+        float u0 = sprite.getU0();
+        float u1 = sprite.getU1();
+        float v0 = sprite.getV0();
+        float v1 = sprite.getV1();
+        float vSide = v0 + (v1 - v0) * HEIGHT;
+
         VertexConsumer c = buffer.getBuffer(RenderType.solid());
         PoseStack.Pose pose = poseStack.last();
 
-        // Oberseite
-        quad(c, pose, sprite, light, 0, 1, 0,
-                sx + px, h, sz + pz,
-                sx - px, h, sz - pz,
-                ex - px, dy + h, ez - pz,
-                ex + px, dy + h, ez + pz);
-        // linke Seite
-        quad(c, pose, sprite, light, -uz, 0, ux,
-                sx + px, 0, sz + pz,
-                sx + px, h, sz + pz,
-                ex + px, dy + h, ez + pz,
-                ex + px, dy, ez + pz);
-        // rechte Seite
-        quad(c, pose, sprite, light, uz, 0, -ux,
-                sx - px, 0, sz - pz,
-                sx - px, h, sz - pz,
-                ex - px, dy + h, ez - pz,
-                ex - px, dy, ez - pz);
-        // Anfang
-        quad(c, pose, sprite, light, -ux, 0, -uz,
-                sx + px, 0, sz + pz,
-                sx + px, h, sz + pz,
-                sx - px, h, sz - pz,
-                sx - px, 0, sz - pz);
-        // Ende
-        quad(c, pose, sprite, light, ux, 0, uz,
-                ex + px, dy, ez + pz,
-                ex + px, dy + h, ez + pz,
-                ex - px, dy + h, ez - pz,
-                ex - px, dy, ez - pz);
+        for (int i = 0; i < curve.count - 1; i++) {
+            int j = i + 1;
+            float pxi = -curve.tz[i];
+            float pzi = curve.tx[i];
+            float pxj = -curve.tz[j];
+            float pzj = curve.tx[j];
+
+            // Oberseite: pro Block eine Kachel
+            for (int k = 0; k < width; k++) {
+                float a0 = -half + k;
+                float a1 = a0 + 1;
+                quad(c, pose, light, 0, 1, 0, u0, u1, v0, v1,
+                        curve.x[i] + pxi * a0, curve.y[i] + h, curve.z[i] + pzi * a0,
+                        curve.x[i] + pxi * a1, curve.y[i] + h, curve.z[i] + pzi * a1,
+                        curve.x[j] + pxj * a1, curve.y[j] + h, curve.z[j] + pzj * a1,
+                        curve.x[j] + pxj * a0, curve.y[j] + h, curve.z[j] + pzj * a0);
+            }
+
+            // linke Seite
+            quad(c, pose, light, pxi, 0, pzi, u0, u1, v0, vSide,
+                    curve.x[i] + pxi * half, curve.y[i], curve.z[i] + pzi * half,
+                    curve.x[j] + pxj * half, curve.y[j], curve.z[j] + pzj * half,
+                    curve.x[j] + pxj * half, curve.y[j] + h, curve.z[j] + pzj * half,
+                    curve.x[i] + pxi * half, curve.y[i] + h, curve.z[i] + pzi * half);
+
+            // rechte Seite
+            quad(c, pose, light, -pxi, 0, -pzi, u0, u1, v0, vSide,
+                    curve.x[i] - pxi * half, curve.y[i], curve.z[i] - pzi * half,
+                    curve.x[j] - pxj * half, curve.y[j], curve.z[j] - pzj * half,
+                    curve.x[j] - pxj * half, curve.y[j] + h, curve.z[j] - pzj * half,
+                    curve.x[i] - pxi * half, curve.y[i] + h, curve.z[i] - pzi * half);
+        }
+
+        // Anfangs- und Endkappe
+        int last = curve.count - 1;
+        float spx = -curve.tz[0];
+        float spz = curve.tx[0];
+        float epx = -curve.tz[last];
+        float epz = curve.tx[last];
+        for (int k = 0; k < width; k++) {
+            float a0 = -half + k;
+            float a1 = a0 + 1;
+            quad(c, pose, light, -curve.tx[0], 0, -curve.tz[0], u0, u1, v0, vSide,
+                    curve.x[0] + spx * a0, curve.y[0], curve.z[0] + spz * a0,
+                    curve.x[0] + spx * a1, curve.y[0], curve.z[0] + spz * a1,
+                    curve.x[0] + spx * a1, curve.y[0] + h, curve.z[0] + spz * a1,
+                    curve.x[0] + spx * a0, curve.y[0] + h, curve.z[0] + spz * a0);
+            quad(c, pose, light, curve.tx[last], 0, curve.tz[last], u0, u1, v0, vSide,
+                    curve.x[last] + epx * a0, curve.y[last], curve.z[last] + epz * a0,
+                    curve.x[last] + epx * a1, curve.y[last], curve.z[last] + epz * a1,
+                    curve.x[last] + epx * a1, curve.y[last] + h, curve.z[last] + epz * a1,
+                    curve.x[last] + epx * a0, curve.y[last] + h, curve.z[last] + epz * a0);
+        }
     }
 
     // Zeichnet ein Viereck von vorn und von hinten, damit die Reihenfolge der Ecken egal ist.
-    private static void quad(VertexConsumer c, PoseStack.Pose pose, TextureAtlasSprite s, int light,
+    private static void quad(VertexConsumer c, PoseStack.Pose pose, int light,
                              float nx, float ny, float nz,
+                             float u0, float u1, float v0, float v1,
                              float x0, float y0, float z0, float x1, float y1, float z1,
                              float x2, float y2, float z2, float x3, float y3, float z3) {
-        float u0 = s.getU0();
-        float u1 = s.getU1();
-        float v0 = s.getV0();
-        float v1 = s.getV1();
         vertex(c, pose, x0, y0, z0, u0, v0, light, nx, ny, nz);
         vertex(c, pose, x1, y1, z1, u1, v0, light, nx, ny, nz);
         vertex(c, pose, x2, y2, z2, u1, v1, light, nx, ny, nz);
