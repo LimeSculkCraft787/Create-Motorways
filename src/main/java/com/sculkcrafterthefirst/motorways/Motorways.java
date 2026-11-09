@@ -14,6 +14,13 @@ public class Motorways {
         modEventBus.addListener(this::addCreative);
     }
 
+    public Motorways(IEventBus modEventBus) {
+        ModBlocks.BLOCKS.register(modEventBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
+        modEventBus.addListener(this::addCreative);
+    }
+
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.SINGLE_ROAD);
