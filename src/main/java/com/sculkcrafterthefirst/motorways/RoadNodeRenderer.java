@@ -47,12 +47,23 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
         return new AABB(minX, minY, minZ, maxX, maxY, maxZ).inflate(0.4 * maxChord + 7);
     }
 
+    // Straße immer zeichnen, auch wenn der Startknoten gerade nicht im Bild ist
+    @Override
+    public boolean shouldRenderOffScreen(RoadNodeBlockEntity be) {
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return 128;
+    }
+
     @Override
     public void render(RoadNodeBlockEntity be, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffer, int light, int overlay) {
         if (be.getRoads().isEmpty()) {
             return;
-        }
+    }
 
         TextureAtlasSprite sprite = Minecraft.getInstance()
                 .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(TEXTURE);
