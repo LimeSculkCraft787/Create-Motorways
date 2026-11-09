@@ -11,47 +11,63 @@ public class RoadCurve {
     public final double minRadius;
 
     public RoadCurve(double dx, double dy, double dz, double sdx, double sdz, double edx, double edz) {
-        double chord = Math.sqrt(dx * dx + dz * dz);
-        double cx = chord > 1e-6 ? dx / chord : 1.0;
-        double cz = chord > 1e-6 ? dz / chord : 0.0;
+        this(dx, dy, dz, sdx, sdz, edx, edz, 0, 0);
+    }
+
+    // so / eo: seitlicher Versatz am Start / Ende (für Spuranschlüsse)
+    public RoadCurve(double dx, double dy, double dz, double sdx, double sdz, double edx, double edz,
+                     double so, double eo) {
+        double chord0 = Math.sqrt(dx * dx + dz * dz);
+        double cx0 = chord0 > 1e-6 ? dx / chord0 : 1.0;
+        double cz0 = chord0 > 1e-6 ? dz / chord0 : 0.0;
 
         double sl = Math.sqrt(sdx * sdx + sdz * sdz);
         if (sl < 1e-6) {
-            sdx = cx;
-            sdz = cz;
+            sdx = cx0;
+            sdz = cz0;
         } else {
             sdx /= sl;
             sdz /= sl;
         }
         double el = Math.sqrt(edx * edx + edz * edz);
         if (el < 1e-6) {
-            edx = cx;
-            edz = cz;
+            edx = cx0;
+            edz = cz0;
         } else {
             edx /= el;
             edz /= el;
         }
 
+        double p0x = -sdz * so;
+        double p0z = sdx * so;
+        double p3x = dx - edz * eo;
+        double p3z = dz + edx * eo;
+        double qx = p3x - p0x;
+        double qz = p3z - p0z;
+        double chord = Math.sqrt(qx * qx + qz * qz);
+        double cx = chord > 1e-6 ? qx / chord : cx0;
+        double cz = chord > 1e-6 ? qz / chord : cz0;
+
         double k = chord * 0.4;
-        double p1x = sdx * k;
-        double p1z = sdz * k;
-        double p2x = dx - edx * k;
-        double p2z = dz - edz * k;
+        double p1x = p0x + sdx * k;
+        double p1z = p0z + sdz * k;
+        double p2x = p3x - edx * k;
+        double p2z = p3z - edz * k;
 
         int m = 256;
         double[] cum = new double[m + 1];
-        double prevX = 0;
-        double prevZ = 0;
+        double prevX = p0x;
+        double prevZ = p0z;
         double prevAngle = Math.atan2(sdz, sdx);
         double maxCurv = 0;
         for (int i = 1; i <= m; i++) {
             double t = (double) i / m;
-            double bx = bezier(0, p1x, p2x, dx, t);
-            double bz = bezier(0, p1z, p2z, dz, t);
+            double bx = bezier(p0x, p1x, p2x, p3x, t);
+            double bz = bezier(p0z, p1z, p2z, p3z, t);
             double seg = Math.hypot(bx - prevX, bz - prevZ);
             cum[i] = cum[i - 1] + seg;
-            double vx = derivative(0, p1x, p2x, dx, t);
-            double vz = derivative(0, p1z, p2z, dz, t);
+            double vx = derivative(p0x, p1x, p2x, p3x, t);
+            double vz = derivative(p0z, p1z, p2z, p3z, t);
             if (Math.hypot(vx, vz) > 1e-9) {
                 double ang = Math.atan2(vz, vx);
                 double da = ang - prevAngle;
@@ -90,10 +106,10 @@ public class RoadCurve {
             double f = span > 1e-9 ? (s - cum[idx]) / span : 0.0;
             double t = Math.min(1.0, (idx + f) / m);
 
-            double bx = bezier(0, p1x, p2x, dx, t);
-            double bz = bezier(0, p1z, p2z, dz, t);
-            double vx = derivative(0, p1x, p2x, dx, t);
-            double vz = derivative(0, p1z, p2z, dz, t);
+            double bx = bezier(p0x, p1x, p2x, p3x, t);
+            double bz = bezier(p0z, p1z, p2z, p3z, t);
+            double vx = derivative(p0x, p1x, p2x, p3x, t);
+            double vz = derivative(p0z, p1z, p2z, p3z, t);
             double vl = Math.hypot(vx, vz);
             if (vl < 1e-9) {
                 vx = cx;
