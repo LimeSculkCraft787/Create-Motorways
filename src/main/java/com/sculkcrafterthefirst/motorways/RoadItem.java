@@ -9,6 +9,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
 
 public class RoadItem extends Item {
     private static final Map<UUID, BlockPos> STARTS = new HashMap<>();
@@ -22,14 +23,14 @@ public class RoadItem extends Item {
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
-        if (context.getLevel().isClientSide()) {
+        Level level = context.getLevel();
+        if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
         Player player = context.getPlayer();
         if (player == null) {
             return InteractionResult.PASS;
         }
-        BlockPos clicked = context.getClickedPos();
         UUID id = player.getUUID();
 
         if (player.isShiftKeyDown()) {
@@ -38,24 +39,39 @@ public class RoadItem extends Item {
             return InteractionResult.SUCCESS;
         }
 
+        BlockPos node = context.getClickedPos().above();
+        if (!level.getBlockState(node).canBeReplaced()) {
+            player.displayClientMessage(Component.literal("Hier ist kein Platz"), true);
+            return InteractionResult.SUCCESS;
+        }
+
         BlockPos start = STARTS.get(id);
         if (start == null) {
-            STARTS.put(id, clicked);
+            STARTS.put(id, node);
             player.displayClientMessage(Component.literal("Startpunkt gesetzt: "
-                    + clicked.getX() + " " + clicked.getY() + " " + clicked.getZ()
+                    + node.getX() + " " + node.getY() + " " + node.getZ()
                     + " (Breite " + width + ")"), true);
+            return InteractionResult.SUCCESS;
+        }
+
+        double dist = Math.sqrt(start.distSqr(node));
+        if (start.equals(node)) {
+            player.displayClientMessage(Component.literal("Start und Ende sind gleich"), true);
+        } else if (dist > MAX_LENGTH) {
+            player.displayClientMessage(Component.literal("Zu weit entfernt (max. "
+                    + MAX_LENGTH + " Blöcke)"), true);
+        } else if (!level.getBlockState(start).canBeReplaced()) {
+            player.displayClientMessage(Component.literal("Der Startpunkt ist blockiert"), true);
+            STARTS.remove(id);
         } else {
-            double dist = Math.sqrt(start.distSqr(clicked));
-            if (dist > MAX_LENGTH) {
-                player.displayClientMessage(Component.literal("Zu weit entfernt (max. "
-                        + MAX_LENGTH + " Blöcke)"), true);
-            } else {
-                player.displayClientMessage(Component.literal("Straße von "
-                        + start.getX() + " " + start.getY() + " " + start.getZ()
-                        + " nach " + clicked.getX() + " " + clicked.getY() + " " + clicked.getZ()
-                        + ", Länge " + String.format("%.1f", dist) + " Blöcke"), true);
-                STARTS.remove(id);
+            level.setBlock(start, ModBlocks.ROAD_NODE.get().defaultBlockState(), 3);
+            level.setBlock(node, ModBlocks.ROAD_NODE.get().defaultBlockState(), 3);
+            if (level.getBlockEntity(start) instanceof RoadNodeBlockEntity be) {
+                be.setConnection(node, width);
             }
+            player.displayClientMessage(Component.literal("Straße gesetzt, Länge "
+                    + String.format("%.1f", dist) + " Blöcke"), true);
+            STARTS.remove(id);
         }
         return InteractionResult.SUCCESS;
     }
