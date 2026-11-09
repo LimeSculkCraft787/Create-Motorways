@@ -60,12 +60,4 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
-
-    @Override
-    public AABB getRenderBoundingBox() {
-        if (target == null) {
-            return super.getRenderBoundingBox();
-        }
-        return new AABB(worldPosition, target).inflate(7);
-    }
 }
