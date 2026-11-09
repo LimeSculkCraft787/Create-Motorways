@@ -11,12 +11,14 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class RoadNodeBlockEntity extends BlockEntity {
     private BlockPos target;
+    private BlockPos partner;
     private int width = 5;
     private double sdx;
     private double sdz;
     private double edx;
     private double edz;
     private RoadCurve curve;
+    private boolean removing;
 
     public RoadNodeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ROAD_NODE.get(), pos, state);
@@ -58,6 +60,36 @@ public class RoadNodeBlockEntity extends BlockEntity {
         }
     }
 
+    public void setPartner(BlockPos partner) {
+        this.partner = partner;
+        setChanged();
+    }
+
+    // Entfernt Kollisionsblöcke und den Knoten am anderen Ende
+    public void removeRoad() {
+        if (removing || level == null || level.isClientSide()) {
+            return;
+        }
+        removing = true;
+        RoadNodeBlockEntity startBe;
+        BlockPos otherPos;
+        if (target != null) {
+            startBe = this;
+            otherPos = target;
+        } else if (partner != null && level.getBlockEntity(partner) instanceof RoadNodeBlockEntity s
+                && s.target != null && !s.removing) {
+            startBe = s;
+            s.removing = true;
+            otherPos = partner;
+        } else {
+            return;
+        }
+        RoadCollision.remove(level, startBe.getBlockPos(), startBe.getCurve(), startBe.width);
+        if (level.getBlockState(otherPos).is(ModBlocks.ROAD_NODE.get())) {
+            level.removeBlock(otherPos, false);
+        }
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
@@ -68,6 +100,9 @@ public class RoadNodeBlockEntity extends BlockEntity {
         tag.putDouble("edz", edz);
         if (target != null) {
             tag.putLong("target", target.asLong());
+        }
+        if (partner != null) {
+            tag.putLong("partner", partner.asLong());
         }
     }
 
@@ -80,6 +115,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
         edx = tag.getDouble("edx");
         edz = tag.getDouble("edz");
         target = tag.contains("target") ? BlockPos.of(tag.getLong("target")) : null;
+        partner = tag.contains("partner") ? BlockPos.of(tag.getLong("partner")) : null;
         curve = null;
     }
 
