@@ -23,6 +23,17 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
     public RoadNodeRenderer(BlockEntityRendererProvider.Context context) {
     }
 
+    public AABB getRenderBoundingBox(RoadNodeBlockEntity be) {
+        BlockPos pos = be.getBlockPos();
+        BlockPos target = be.getTarget();
+        if (target == null) {
+            return new AABB(pos.getX(), pos.getY(), pos.getZ(),
+                    pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+        }
+        return new AABB(pos.getX(), pos.getY(), pos.getZ(),
+                target.getX() + 1, target.getY() + 1, target.getZ() + 1).inflate(7);
+    }
+
     @Override
     public void render(RoadNodeBlockEntity be, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffer, int light, int overlay) {
