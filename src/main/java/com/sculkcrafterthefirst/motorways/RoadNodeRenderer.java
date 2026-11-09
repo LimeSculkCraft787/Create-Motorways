@@ -22,6 +22,7 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
     public RoadNodeRenderer(BlockEntityRendererProvider.Context context) {
     }
 
+    @Override
     public AABB getRenderBoundingBox(RoadNodeBlockEntity be) {
         BlockPos pos = be.getBlockPos();
         double minX = pos.getX();
