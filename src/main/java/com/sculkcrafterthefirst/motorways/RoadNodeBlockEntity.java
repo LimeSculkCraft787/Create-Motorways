@@ -18,6 +18,10 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class RoadNodeBlockEntity extends BlockEntity {
 
+    // Richtung vom Knoten in den Straßenkörper hinein, Breite und seitlicher Versatz am Knoten
+    public record Arm(double dx, double dz, int width, double offset) {
+    }
+
     // Eine Straße, die an diesem Knoten beginnt
     public static class Road {
         public final BlockPos target;
@@ -26,15 +30,20 @@ public class RoadNodeBlockEntity extends BlockEntity {
         public final double sdz;
         public final double edx;
         public final double edz;
+        public final double so;
+        public final double eo;
         private RoadCurve curve;
 
-        public Road(BlockPos target, int width, double sdx, double sdz, double edx, double edz) {
+        public Road(BlockPos target, int width, double sdx, double sdz, double edx, double edz,
+                    double so, double eo) {
             this.target = target;
             this.width = width;
             this.sdx = sdx;
             this.sdz = sdz;
             this.edx = edx;
             this.edz = edz;
+            this.so = so;
+            this.eo = eo;
         }
 
         public RoadCurve curve(BlockPos start) {
@@ -43,7 +52,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
                         target.getX() - start.getX(),
                         target.getY() - start.getY(),
                         target.getZ() - start.getZ(),
-                        sdx, sdz, edx, edz);
+                        sdx, sdz, edx, edz, so, eo);
             }
             return curve;
         }
@@ -76,12 +85,15 @@ public class RoadNodeBlockEntity extends BlockEntity {
             t.putDouble("sdz", sdz);
             t.putDouble("edx", edx);
             t.putDouble("edz", edz);
+            t.putDouble("so", so);
+            t.putDouble("eo", eo);
             return t;
         }
 
         static Road load(CompoundTag t) {
             return new Road(BlockPos.of(t.getLong("target")), t.getInt("width"),
-                    t.getDouble("sdx"), t.getDouble("sdz"), t.getDouble("edx"), t.getDouble("edz"));
+                    t.getDouble("sdx"), t.getDouble("sdz"), t.getDouble("edx"), t.getDouble("edz"),
+                    t.getDouble("so"), t.getDouble("eo"));
         }
     }
 
@@ -114,30 +126,12 @@ public class RoadNodeBlockEntity extends BlockEntity {
         return false;
     }
 
-    // Breite der Straßen an diesem Knoten (0, wenn keine dran hängt)
-    public int getRoadWidth() {
-        if (!roads.isEmpty()) {
-            return roads.get(0).width;
-        }
-        if (level != null) {
-            for (BlockPos s : incoming) {
-                if (level.getBlockEntity(s) instanceof RoadNodeBlockEntity sb) {
-                    for (Road r : sb.roads) {
-                        if (r.target.equals(worldPosition)) {
-                            return r.width;
-                        }
-                    }
-                }
-            }
-        }
-        return 0;
-    }
-
-    // Richtungen vom Knoten in den Straßenkörper hinein
-    public List<double[]> getArms() {
-        List<double[]> arms = new ArrayList<>();
+    // Alle Anschlüsse an diesem Knoten
+    public List<Arm> getArms() {
+        List<Arm> arms = new ArrayList<>();
         for (Road r : roads) {
-            arms.add(r.startDir(worldPosition));
+            double[] d = r.startDir(worldPosition);
+            arms.add(new Arm(d[0], d[1], r.width, r.so));
         }
         if (level != null) {
             for (BlockPos s : incoming) {
@@ -145,7 +139,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
                     for (Road r : sb.roads) {
                         if (r.target.equals(worldPosition)) {
                             double[] e = r.endDir(s);
-                            arms.add(new double[] { -e[0], -e[1] });
+                            arms.add(new Arm(-e[0], -e[1], r.width, r.eo));
                         }
                     }
                 }
@@ -154,8 +148,9 @@ public class RoadNodeBlockEntity extends BlockEntity {
         return arms;
     }
 
-    public void addRoad(BlockPos target, int width, double sdx, double sdz, double edx, double edz) {
-        roads.add(new Road(target, width, sdx, sdz, edx, edz));
+    public void addRoad(BlockPos target, int width, double sdx, double sdz, double edx, double edz,
+                        double so, double eo) {
+        roads.add(new Road(target, width, sdx, sdz, edx, edz, so, eo));
         sync();
     }
 
@@ -259,7 +254,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
             // altes Format (Start-Knoten)
             roads.add(new Road(BlockPos.of(tag.getLong("target")), tag.getInt("width"),
                     tag.getDouble("sdx"), tag.getDouble("sdz"),
-                    tag.getDouble("edx"), tag.getDouble("edz")));
+                    tag.getDouble("edx"), tag.getDouble("edz"), 0, 0));
         } else if (tag.contains("partner")) {
             // altes Format (End-Knoten)
             incoming.add(BlockPos.of(tag.getLong("partner")));
