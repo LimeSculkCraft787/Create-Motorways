@@ -10,11 +10,6 @@ public class Motorways {
     public static final String MODID = "motorways";
 
     public Motorways(IEventBus modEventBus) {
-        ModItems.ITEMS.register(modEventBus);
-        modEventBus.addListener(this::addCreative);
-    }
-
-    public Motorways(IEventBus modEventBus) {
         ModBlocks.BLOCKS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
