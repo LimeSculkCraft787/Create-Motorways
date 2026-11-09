@@ -24,32 +24,34 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
 
     public AABB getRenderBoundingBox(RoadNodeBlockEntity be) {
         BlockPos pos = be.getBlockPos();
-        BlockPos target = be.getTarget();
-        if (target == null) {
-            return new AABB(pos.getX(), pos.getY(), pos.getZ(),
-                    pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+        double minX = pos.getX();
+        double minY = pos.getY();
+        double minZ = pos.getZ();
+        double maxX = pos.getX() + 1;
+        double maxY = pos.getY() + 1;
+        double maxZ = pos.getZ() + 1;
+        double maxChord = 0;
+        for (RoadNodeBlockEntity.Road r : be.getRoads()) {
+            BlockPos t = r.target;
+            minX = Math.min(minX, t.getX());
+            minY = Math.min(minY, t.getY());
+            minZ = Math.min(minZ, t.getZ());
+            maxX = Math.max(maxX, t.getX() + 1);
+            maxY = Math.max(maxY, t.getY() + 1);
+            maxZ = Math.max(maxZ, t.getZ() + 1);
+            double dx = t.getX() - pos.getX();
+            double dz = t.getZ() - pos.getZ();
+            maxChord = Math.max(maxChord, Math.sqrt(dx * dx + dz * dz));
         }
-        double dx = target.getX() - pos.getX();
-        double dz = target.getZ() - pos.getZ();
-        double margin = 0.4 * Math.sqrt(dx * dx + dz * dz) + 7;
-        return new AABB(
-                Math.min(pos.getX(), target.getX()), Math.min(pos.getY(), target.getY()),
-                Math.min(pos.getZ(), target.getZ()),
-                Math.max(pos.getX(), target.getX()) + 1, Math.max(pos.getY(), target.getY()) + 1,
-                Math.max(pos.getZ(), target.getZ()) + 1).inflate(margin);
+        return new AABB(minX, minY, minZ, maxX, maxY, maxZ).inflate(0.4 * maxChord + 7);
     }
 
     @Override
     public void render(RoadNodeBlockEntity be, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffer, int light, int overlay) {
-        RoadCurve curve = be.getCurve();
-        if (curve == null) {
+        if (be.getRoads().isEmpty()) {
             return;
         }
-
-        int width = be.getWidth();
-        float half = width / 2.0f;
-        float h = HEIGHT;
 
         TextureAtlasSprite sprite = Minecraft.getInstance()
                 .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(TEXTURE);
@@ -61,66 +63,73 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
 
         VertexConsumer c = buffer.getBuffer(RenderType.solid());
         PoseStack.Pose pose = poseStack.last();
+        BlockPos pos = be.getBlockPos();
 
-        int seed = be.getBlockPos().hashCode();
-        
-        for (int i = 0; i < curve.count - 1; i++) {
-            int j = i + 1;
-            float pxi = -curve.tz[i];
-            float pzi = curve.tx[i];
-            float pxj = -curve.tz[j];
-            float pzj = curve.tx[j];
+        for (RoadNodeBlockEntity.Road road : be.getRoads()) {
+            RoadCurve curve = road.curve(pos);
+            int width = road.width;
+            float half = width / 2.0f;
+            int seed = pos.hashCode() * 31 + road.target.hashCode();
+            float h = HEIGHT + ((seed >>> 3) & 15) * 0.0004f;
 
-            // Oberseite: pro Block eine Kachel, zufällig gedreht
+            for (int i = 0; i < curve.count - 1; i++) {
+                int j = i + 1;
+                float pxi = -curve.tz[i];
+                float pzi = curve.tx[i];
+                float pxj = -curve.tz[j];
+                float pzj = curve.tx[j];
+
+                // Oberseite: pro Block eine Kachel, zufällig gedreht
+                for (int k = 0; k < width; k++) {
+                    float a0 = -half + k;
+                    float a1 = a0 + 1;
+                    int hash = (seed * 31 + i) * 31 + k;
+                    hash ^= hash >>> 15;
+                    hash *= 0x2c1b3c6d;
+                    hash ^= hash >>> 12;
+                    int rot = hash & 3;
+                    quadRot(c, pose, light, rot, 0, 1, 0, u0, u1, v0, v1,
+                            curve.x[i] + pxi * a0, curve.y[i] + h, curve.z[i] + pzi * a0,
+                            curve.x[i] + pxi * a1, curve.y[i] + h, curve.z[i] + pzi * a1,
+                            curve.x[j] + pxj * a1, curve.y[j] + h, curve.z[j] + pzj * a1,
+                            curve.x[j] + pxj * a0, curve.y[j] + h, curve.z[j] + pzj * a0);
+                }
+
+                // linke Seite
+                quad(c, pose, light, pxi, 0, pzi, u0, u1, v0, vSide,
+                        curve.x[i] + pxi * half, curve.y[i], curve.z[i] + pzi * half,
+                        curve.x[j] + pxj * half, curve.y[j], curve.z[j] + pzj * half,
+                        curve.x[j] + pxj * half, curve.y[j] + h, curve.z[j] + pzj * half,
+                        curve.x[i] + pxi * half, curve.y[i] + h, curve.z[i] + pzi * half);
+
+                // rechte Seite
+                quad(c, pose, light, -pxi, 0, -pzi, u0, u1, v0, vSide,
+                        curve.x[i] - pxi * half, curve.y[i], curve.z[i] - pzi * half,
+                        curve.x[j] - pxj * half, curve.y[j], curve.z[j] - pzj * half,
+                        curve.x[j] - pxj * half, curve.y[j] + h, curve.z[j] - pzj * half,
+                        curve.x[i] - pxi * half, curve.y[i] + h, curve.z[i] - pzi * half);
+            }
+
+            // Anfangs- und Endkappe
+            int last = curve.count - 1;
+            float spx = -curve.tz[0];
+            float spz = curve.tx[0];
+            float epx = -curve.tz[last];
+            float epz = curve.tx[last];
             for (int k = 0; k < width; k++) {
                 float a0 = -half + k;
                 float a1 = a0 + 1;
-                int hash = (seed * 31 + i) * 31 + k;
-                hash ^= hash >>> 15;
-                hash *= 0x2c1b3c6d;
-                hash ^= hash >>> 12;
-                int rot = hash & 3;
-                quadRot(c, pose, light, rot, 0, 1, 0, u0, u1, v0, v1,
-                        curve.x[i] + pxi * a0, curve.y[i] + h, curve.z[i] + pzi * a0,
-                        curve.x[i] + pxi * a1, curve.y[i] + h, curve.z[i] + pzi * a1,
-                        curve.x[j] + pxj * a1, curve.y[j] + h, curve.z[j] + pzj * a1,
-                        curve.x[j] + pxj * a0, curve.y[j] + h, curve.z[j] + pzj * a0);
+                quad(c, pose, light, -curve.tx[0], 0, -curve.tz[0], u0, u1, v0, vSide,
+                        curve.x[0] + spx * a0, curve.y[0], curve.z[0] + spz * a0,
+                        curve.x[0] + spx * a1, curve.y[0], curve.z[0] + spz * a1,
+                        curve.x[0] + spx * a1, curve.y[0] + h, curve.z[0] + spz * a1,
+                        curve.x[0] + spx * a0, curve.y[0] + h, curve.z[0] + spz * a0);
+                quad(c, pose, light, curve.tx[last], 0, curve.tz[last], u0, u1, v0, vSide,
+                        curve.x[last] + epx * a0, curve.y[last], curve.z[last] + epz * a0,
+                        curve.x[last] + epx * a1, curve.y[last], curve.z[last] + epz * a1,
+                        curve.x[last] + epx * a1, curve.y[last] + h, curve.z[last] + epz * a1,
+                        curve.x[last] + epx * a0, curve.y[last] + h, curve.z[last] + epz * a0);
             }
-
-            // linke Seite
-            quad(c, pose, light, pxi, 0, pzi, u0, u1, v0, vSide,
-                    curve.x[i] + pxi * half, curve.y[i], curve.z[i] + pzi * half,
-                    curve.x[j] + pxj * half, curve.y[j], curve.z[j] + pzj * half,
-                    curve.x[j] + pxj * half, curve.y[j] + h, curve.z[j] + pzj * half,
-                    curve.x[i] + pxi * half, curve.y[i] + h, curve.z[i] + pzi * half);
-
-            // rechte Seite
-            quad(c, pose, light, -pxi, 0, -pzi, u0, u1, v0, vSide,
-                    curve.x[i] - pxi * half, curve.y[i], curve.z[i] - pzi * half,
-                    curve.x[j] - pxj * half, curve.y[j], curve.z[j] - pzj * half,
-                    curve.x[j] - pxj * half, curve.y[j] + h, curve.z[j] - pzj * half,
-                    curve.x[i] - pxi * half, curve.y[i] + h, curve.z[i] - pzi * half);
-        }
-
-        // Anfangs- und Endkappe
-        int last = curve.count - 1;
-        float spx = -curve.tz[0];
-        float spz = curve.tx[0];
-        float epx = -curve.tz[last];
-        float epz = curve.tx[last];
-        for (int k = 0; k < width; k++) {
-            float a0 = -half + k;
-            float a1 = a0 + 1;
-            quad(c, pose, light, -curve.tx[0], 0, -curve.tz[0], u0, u1, v0, vSide,
-                    curve.x[0] + spx * a0, curve.y[0], curve.z[0] + spz * a0,
-                    curve.x[0] + spx * a1, curve.y[0], curve.z[0] + spz * a1,
-                    curve.x[0] + spx * a1, curve.y[0] + h, curve.z[0] + spz * a1,
-                    curve.x[0] + spx * a0, curve.y[0] + h, curve.z[0] + spz * a0);
-            quad(c, pose, light, curve.tx[last], 0, curve.tz[last], u0, u1, v0, vSide,
-                    curve.x[last] + epx * a0, curve.y[last], curve.z[last] + epz * a0,
-                    curve.x[last] + epx * a1, curve.y[last], curve.z[last] + epz * a1,
-                    curve.x[last] + epx * a1, curve.y[last] + h, curve.z[last] + epz * a1,
-                    curve.x[last] + epx * a0, curve.y[last] + h, curve.z[last] + epz * a0);
         }
     }
 
@@ -140,7 +149,7 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
         vertex(c, pose, x0, y0, z0, u0, v0, light, -nx, -ny, -nz);
     }
 
-        private static void quadRot(VertexConsumer c, PoseStack.Pose pose, int light, int rot,
+    private static void quadRot(VertexConsumer c, PoseStack.Pose pose, int light, int rot,
                                 float nx, float ny, float nz,
                                 float u0, float u1, float v0, float v1,
                                 float x0, float y0, float z0, float x1, float y1, float z1,
