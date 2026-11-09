@@ -125,7 +125,12 @@ public class RoadItem extends Item {
         level.setBlock(node, ModBlocks.ROAD_NODE.get().defaultBlockState(), 3);
         if (level.getBlockEntity(startPos) instanceof RoadNodeBlockEntity be) {
             be.setConnection(node, width, sdx, sdz, edx, edz);
+            be.setPartner(node);
         }
+        if (level.getBlockEntity(node) instanceof RoadNodeBlockEntity endBe) {
+            endBe.setPartner(startPos);
+        }
+        RoadCollision.place(level, startPos, curve, width);
         player.displayClientMessage(Component.literal("Straße gesetzt, Länge "
                 + String.format("%.1f", curve.length) + " Blöcke"), true);
         STARTS.remove(id);
