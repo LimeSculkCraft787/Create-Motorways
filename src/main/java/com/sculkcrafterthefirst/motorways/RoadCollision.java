@@ -74,4 +74,23 @@ public class RoadCollision {
             }
         }
     }
+
+        // Baut die Kollision aller Straßen, die an diesem Knoten hängen, neu auf
+    public static void rebuildAt(Level level, BlockPos nodePos) {
+        if (!(level.getBlockEntity(nodePos) instanceof RoadNodeBlockEntity be)) {
+            return;
+        }
+        for (RoadNodeBlockEntity.Road r : be.getRoads()) {
+            place(level, nodePos, r.curve(nodePos), r.width);
+        }
+        for (BlockPos s : be.getIncoming()) {
+            if (level.getBlockEntity(s) instanceof RoadNodeBlockEntity sb) {
+                for (RoadNodeBlockEntity.Road r : sb.getRoads()) {
+                    if (r.target.equals(nodePos)) {
+                        place(level, s, r.curve(s), r.width);
+                    }
+                }
+            }
+        }
+    }
 }
