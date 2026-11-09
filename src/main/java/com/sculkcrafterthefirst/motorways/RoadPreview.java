@@ -2,8 +2,10 @@ package com.sculkcrafterthefirst.motorways;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -17,9 +19,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -29,6 +35,11 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 public class RoadPreview {
     private static final ResourceLocation WHITE =
             ResourceLocation.withDefaultNamespace("block/white_concrete");
+    private static final int NODE_RADIUS_CHUNKS = 4;
+
+    private static boolean hasStart(ItemStack stack) {
+        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().contains("StartX");
+    }
 
     @SubscribeEvent
     public static void onRender(RenderLevelStageEvent event) {
@@ -40,25 +51,47 @@ public class RoadPreview {
         if (player == null || mc.level == null) {
             return;
         }
-        ItemStack stack = player.getMainHandItem();
-        if (!(stack.getItem() instanceof RoadItem item)) {
+
+        // Straßen-Item in Haupt- oder Nebenhand (bevorzugt das mit gesetztem Startpunkt)
+        ItemStack stack = null;
+        for (ItemStack s : new ItemStack[] { player.getMainHandItem(), player.getOffhandItem() }) {
+            if (s.getItem() instanceof RoadItem) {
+                if (stack == null || (!hasStart(stack) && hasStart(s))) {
+                    stack = s;
+                }
+            }
+        }
+        if (stack == null) {
             return;
         }
+        RoadItem item = (RoadItem) stack.getItem();
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        if (!tag.contains("StartX")) {
+        boolean hasStart = tag.contains("StartX");
+        BlockPos start = hasStart
+                ? new BlockPos(tag.getInt("StartX"), tag.getInt("StartY"), tag.getInt("StartZ"))
+                : null;
+
+        PoseStack poseStack = event.getPoseStack();
+        Vec3 cam = event.getCamera().getPosition();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+
+        drawNodes(mc, player, poseStack, cam, buffers, item.getWidth(), start);
+
+        if (!hasStart) {
             return;
         }
         if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) {
             return;
         }
 
-        BlockPos start = new BlockPos(tag.getInt("StartX"), tag.getInt("StartY"), tag.getInt("StartZ"));
         BlockPos clicked = hit.getBlockPos();
         BlockPos end = mc.level.getBlockState(clicked).is(ModBlocks.ROAD_NODE.get()) ? clicked : clicked.above();
         double[] look = RoadItem.snappedLook(player);
+        Vec3 loc = hit.getLocation();
 
         RoadPlanner.Plan plan = RoadPlanner.plan(mc.level, item.getWidth(), start,
-                tag.getDouble("DirX"), tag.getDouble("DirZ"), end, look[0], look[1]);
+                tag.getDouble("DirX"), tag.getDouble("DirZ"), tag.getDouble("StartOff"),
+                end, look[0], look[1], loc.x, loc.z);
         if (!plan.ok()) {
             player.displayClientMessage(Component.literal(plan.message()), true);
         }
@@ -78,9 +111,6 @@ public class RoadPreview {
         float v0 = sprite.getV0();
         float v1 = sprite.getV1();
 
-        PoseStack poseStack = event.getPoseStack();
-        Vec3 cam = event.getCamera().getPosition();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer c = buffers.getBuffer(RenderType.translucent());
 
         poseStack.pushPose();
@@ -104,6 +134,49 @@ public class RoadPreview {
 
         poseStack.popPose();
         buffers.endBatch(RenderType.translucent());
+    }
+
+    // Umriss um alle Knoten in der Nähe, bei der Einspur-Straße zusätzlich die Spurmitten der Doppelstraßen
+    private static void drawNodes(Minecraft mc, LocalPlayer player, PoseStack poseStack, Vec3 cam,
+                                  MultiBufferSource.BufferSource buffers, int heldWidth, BlockPos pending) {
+        VertexConsumer lines = buffers.getBuffer(RenderType.lines());
+        int pcx = player.blockPosition().getX() >> 4;
+        int pcz = player.blockPosition().getZ() >> 4;
+
+        for (int cxo = -NODE_RADIUS_CHUNKS; cxo <= NODE_RADIUS_CHUNKS; cxo++) {
+            for (int czo = -NODE_RADIUS_CHUNKS; czo <= NODE_RADIUS_CHUNKS; czo++) {
+                LevelChunk chunk = mc.level.getChunk(pcx + cxo, pcz + czo);
+                for (BlockEntity be : chunk.getBlockEntities().values()) {
+                    if (!(be instanceof RoadNodeBlockEntity node)) {
+                        continue;
+                    }
+                    BlockPos p = node.getBlockPos();
+                    boolean isPending = p.equals(pending);
+                    float r = isPending ? 1.0f : 0.2f;
+                    float g = isPending ? 0.85f : 0.9f;
+                    float b = isPending ? 0.1f : 1.0f;
+                    AABB box = new AABB(p).inflate(0.01).move(-cam.x, -cam.y, -cam.z);
+                    LevelRenderer.renderLineBox(poseStack, lines, box, r, g, b, 1.0f);
+
+                    if (heldWidth == RoadPlanner.SINGLE) {
+                        for (RoadNodeBlockEntity.Arm arm : node.getArms()) {
+                            if (arm.offset() != 0 || arm.width() != RoadPlanner.DOUBLE) {
+                                continue;
+                            }
+                            for (int s = -1; s <= 1; s += 2) {
+                                double ax = p.getX() + 0.5 + (-arm.dz()) * s * RoadPlanner.LANE_OFFSET;
+                                double az = p.getZ() + 0.5 + arm.dx() * s * RoadPlanner.LANE_OFFSET;
+                                AABB marker = new AABB(ax - 0.2, p.getY(), az - 0.2,
+                                        ax + 0.2, p.getY() + 0.45, az + 0.2)
+                                        .move(-cam.x, -cam.y, -cam.z);
+                                LevelRenderer.renderLineBox(poseStack, lines, marker, 1.0f, 0.55f, 0.1f, 1.0f);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        buffers.endBatch(RenderType.lines());
     }
 
     private static void ghostQuad(VertexConsumer c, PoseStack.Pose pose, int r, int g, int b, int a,
