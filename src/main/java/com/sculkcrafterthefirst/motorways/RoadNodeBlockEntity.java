@@ -1,8 +1,15 @@
 package com.sculkcrafterthefirst.motorways;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -10,113 +17,253 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class RoadNodeBlockEntity extends BlockEntity {
-    private BlockPos target;
-    private BlockPos partner;
-    private int width = 5;
-    private double sdx;
-    private double sdz;
-    private double edx;
-    private double edz;
-    private RoadCurve curve;
+
+    // Eine Straße, die an diesem Knoten beginnt
+    public static class Road {
+        public final BlockPos target;
+        public final int width;
+        public final double sdx;
+        public final double sdz;
+        public final double edx;
+        public final double edz;
+        private RoadCurve curve;
+
+        public Road(BlockPos target, int width, double sdx, double sdz, double edx, double edz) {
+            this.target = target;
+            this.width = width;
+            this.sdx = sdx;
+            this.sdz = sdz;
+            this.edx = edx;
+            this.edz = edz;
+        }
+
+        public RoadCurve curve(BlockPos start) {
+            if (curve == null) {
+                curve = new RoadCurve(
+                        target.getX() - start.getX(),
+                        target.getY() - start.getY(),
+                        target.getZ() - start.getZ(),
+                        sdx, sdz, edx, edz);
+            }
+            return curve;
+        }
+
+        public double[] startDir(BlockPos start) {
+            return unit(sdx, sdz, target.getX() - start.getX(), target.getZ() - start.getZ());
+        }
+
+        public double[] endDir(BlockPos start) {
+            return unit(edx, edz, target.getX() - start.getX(), target.getZ() - start.getZ());
+        }
+
+        private static double[] unit(double x, double z, double fx, double fz) {
+            double l = Math.hypot(x, z);
+            if (l < 1e-6) {
+                l = Math.hypot(fx, fz);
+                if (l < 1e-6) {
+                    return new double[] { 1, 0 };
+                }
+                return new double[] { fx / l, fz / l };
+            }
+            return new double[] { x / l, z / l };
+        }
+
+        CompoundTag save() {
+            CompoundTag t = new CompoundTag();
+            t.putLong("target", target.asLong());
+            t.putInt("width", width);
+            t.putDouble("sdx", sdx);
+            t.putDouble("sdz", sdz);
+            t.putDouble("edx", edx);
+            t.putDouble("edz", edz);
+            return t;
+        }
+
+        static Road load(CompoundTag t) {
+            return new Road(BlockPos.of(t.getLong("target")), t.getInt("width"),
+                    t.getDouble("sdx"), t.getDouble("sdz"), t.getDouble("edx"), t.getDouble("edz"));
+        }
+    }
+
+    private final List<Road> roads = new ArrayList<>();
+    private final List<BlockPos> incoming = new ArrayList<>();
     private boolean removing;
 
     public RoadNodeBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.ROAD_NODE.get(), pos, state);
     }
 
-    public BlockPos getTarget() {
-        return target;
+    public List<Road> getRoads() {
+        return roads;
     }
 
-    public int getWidth() {
-        return width;
+    public List<BlockPos> getIncoming() {
+        return incoming;
     }
 
-    public RoadCurve getCurve() {
-        if (target == null) {
-            return null;
+    public boolean isEmpty() {
+        return roads.isEmpty() && incoming.isEmpty();
+    }
+
+    public boolean hasRoadTo(BlockPos pos) {
+        for (Road r : roads) {
+            if (r.target.equals(pos)) {
+                return true;
+            }
         }
-        if (curve == null) {
-            curve = new RoadCurve(
-                    target.getX() - worldPosition.getX(),
-                    target.getY() - worldPosition.getY(),
-                    target.getZ() - worldPosition.getZ(),
-                    sdx, sdz, edx, edz);
-        }
-        return curve;
+        return false;
     }
 
-    public void setConnection(BlockPos target, int width, double sdx, double sdz, double edx, double edz) {
-        this.target = target;
-        this.width = width;
-        this.sdx = sdx;
-        this.sdz = sdz;
-        this.edx = edx;
-        this.edz = edz;
-        this.curve = null;
+    // Breite der Straßen an diesem Knoten (0, wenn keine dran hängt)
+    public int getRoadWidth() {
+        if (!roads.isEmpty()) {
+            return roads.get(0).width;
+        }
+        if (level != null) {
+            for (BlockPos s : incoming) {
+                if (level.getBlockEntity(s) instanceof RoadNodeBlockEntity sb) {
+                    for (Road r : sb.roads) {
+                        if (r.target.equals(worldPosition)) {
+                            return r.width;
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
+    }
+
+    // Richtungen vom Knoten in den Straßenkörper hinein
+    public List<double[]> getArms() {
+        List<double[]> arms = new ArrayList<>();
+        for (Road r : roads) {
+            arms.add(r.startDir(worldPosition));
+        }
+        if (level != null) {
+            for (BlockPos s : incoming) {
+                if (level.getBlockEntity(s) instanceof RoadNodeBlockEntity sb) {
+                    for (Road r : sb.roads) {
+                        if (r.target.equals(worldPosition)) {
+                            double[] e = r.endDir(s);
+                            arms.add(new double[] { -e[0], -e[1] });
+                        }
+                    }
+                }
+            }
+        }
+        return arms;
+    }
+
+    public void addRoad(BlockPos target, int width, double sdx, double sdz, double edx, double edz) {
+        roads.add(new Road(target, width, sdx, sdz, edx, edz));
+        sync();
+    }
+
+    public void addIncoming(BlockPos start) {
+        if (!incoming.contains(start)) {
+            incoming.add(start);
+        }
+        sync();
+    }
+
+    public Road removeRoadTo(BlockPos target) {
+        Iterator<Road> it = roads.iterator();
+        while (it.hasNext()) {
+            Road r = it.next();
+            if (r.target.equals(target)) {
+                it.remove();
+                return r;
+            }
+        }
+        return null;
+    }
+
+    private void sync() {
         setChanged();
         if (level != null) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
     }
 
-    public void setPartner(BlockPos partner) {
-        this.partner = partner;
-        setChanged();
-    }
-
-    // Entfernt Kollisionsblöcke und den Knoten am anderen Ende
-    public void removeRoad() {
+    // Wird aufgerufen, wenn dieser Knoten abgebaut wird
+    public void breakNode() {
         if (removing || level == null || level.isClientSide()) {
             return;
         }
         removing = true;
-        RoadNodeBlockEntity startBe;
-        BlockPos otherPos;
-        if (target != null) {
-            startBe = this;
-            otherPos = target;
-        } else if (partner != null && level.getBlockEntity(partner) instanceof RoadNodeBlockEntity s
-                && s.target != null && !s.removing) {
-            startBe = s;
-            s.removing = true;
-            otherPos = partner;
-        } else {
-            return;
+        Set<BlockPos> touched = new HashSet<>();
+
+        for (Road r : new ArrayList<>(roads)) {
+            RoadCollision.remove(level, worldPosition, r.curve(worldPosition), r.width);
+            if (level.getBlockEntity(r.target) instanceof RoadNodeBlockEntity ob) {
+                ob.incoming.remove(worldPosition);
+                ob.sync();
+                touched.add(r.target);
+            }
         }
-        RoadCollision.remove(level, startBe.getBlockPos(), startBe.getCurve(), startBe.width);
-        if (level.getBlockState(otherPos).is(ModBlocks.ROAD_NODE.get())) {
-            level.removeBlock(otherPos, false);
+        roads.clear();
+
+        for (BlockPos startPos : new ArrayList<>(incoming)) {
+            if (level.getBlockEntity(startPos) instanceof RoadNodeBlockEntity sb) {
+                Road r = sb.removeRoadTo(worldPosition);
+                if (r != null) {
+                    RoadCollision.remove(level, startPos, r.curve(startPos), r.width);
+                    sb.sync();
+                    touched.add(startPos);
+                }
+            }
+        }
+        incoming.clear();
+
+        for (BlockPos p : touched) {
+            if (level.getBlockEntity(p) instanceof RoadNodeBlockEntity nb && nb.isEmpty()) {
+                level.removeBlock(p, false);
+            }
+        }
+        for (BlockPos p : touched) {
+            if (level.getBlockState(p).is(ModBlocks.ROAD_NODE.get())) {
+                RoadCollision.rebuildAt(level, p);
+            }
         }
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        tag.putInt("width", width);
-        tag.putDouble("sdx", sdx);
-        tag.putDouble("sdz", sdz);
-        tag.putDouble("edx", edx);
-        tag.putDouble("edz", edz);
-        if (target != null) {
-            tag.putLong("target", target.asLong());
+        ListTag list = new ListTag();
+        for (Road r : roads) {
+            list.add(r.save());
         }
-        if (partner != null) {
-            tag.putLong("partner", partner.asLong());
+        tag.put("roads", list);
+        long[] inc = new long[incoming.size()];
+        for (int i = 0; i < inc.length; i++) {
+            inc[i] = incoming.get(i).asLong();
         }
+        tag.putLongArray("incoming", inc);
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        width = tag.getInt("width");
-        sdx = tag.getDouble("sdx");
-        sdz = tag.getDouble("sdz");
-        edx = tag.getDouble("edx");
-        edz = tag.getDouble("edz");
-        target = tag.contains("target") ? BlockPos.of(tag.getLong("target")) : null;
-        partner = tag.contains("partner") ? BlockPos.of(tag.getLong("partner")) : null;
-        curve = null;
+        roads.clear();
+        incoming.clear();
+        if (tag.contains("roads")) {
+            ListTag list = tag.getList("roads", Tag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                roads.add(Road.load(list.getCompound(i)));
+            }
+            for (long l : tag.getLongArray("incoming")) {
+                incoming.add(BlockPos.of(l));
+            }
+        } else if (tag.contains("target")) {
+            // altes Format (Start-Knoten)
+            roads.add(new Road(BlockPos.of(tag.getLong("target")), tag.getInt("width"),
+                    tag.getDouble("sdx"), tag.getDouble("sdz"),
+                    tag.getDouble("edx"), tag.getDouble("edz")));
+        } else if (tag.contains("partner")) {
+            // altes Format (End-Knoten)
+            incoming.add(BlockPos.of(tag.getLong("partner")));
+        }
     }
 
     @Override
