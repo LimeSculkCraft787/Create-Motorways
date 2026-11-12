@@ -1,4 +1,12 @@
 {
   "item.motorways.single_road": "Single-Lane Road",
-  "item.motorways.double_road": "Two-Lane Road"
+  "item.motorways.double_road": "Two-Lane Road",
+  "item.motorways.arrow_onwards": "Straight Arrow",
+  "item.motorways.arrow_left": "Left Arrow",
+  "item.motorways.arrow_right": "Right Arrow",
+  "item.motorways.arrow_left_right": "Left/Right Arrow",
+  "item.motorways.arrow_onwards_left": "Straight/Left Arrow",
+  "item.motorways.arrow_onwards_right": "Straight/Right Arrow",
+  "item.motorways.arrow_left_stretched": "Left Arrow (Stretched)",
+  "item.motorways.arrow_right_stretched": "Right Arrow (Stretched)"
 }
