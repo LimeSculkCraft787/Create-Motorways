@@ -6,7 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 public class RoadPlanner {
-    public static final int MAX_LENGTH = 32;
+    public static final int MAX_LENGTH = 64;
     public static final int SINGLE = 5;
     public static final int DOUBLE = 11;
     public static final double LANE_OFFSET = (DOUBLE - SINGLE) / 2.0;
