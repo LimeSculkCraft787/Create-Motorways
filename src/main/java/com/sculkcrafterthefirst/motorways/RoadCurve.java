@@ -133,7 +133,32 @@ public class RoadCurve {
         this.tx = txs;
         this.tz = tzs;
     }
-
+    // Punkt der Mittellinie bei Bogenlänge s: out = { x, y, z, tx, tz }
+    public void at(double s, float[] out) {
+        int n = count - 1;
+        double step = length / n;
+        double f = step > 1e-9 ? s / step : 0.0;
+        f = Math.max(0.0, Math.min(n, f));
+        int i = (int) Math.floor(f);
+        if (i >= n) {
+            i = n - 1;
+        }
+        float u = (float) (f - i);
+        out[0] = x[i] + (x[i + 1] - x[i]) * u;
+        out[1] = y[i] + (y[i + 1] - y[i]) * u;
+        out[2] = z[i] + (z[i + 1] - z[i]) * u;
+        float ttx = tx[i] + (tx[i + 1] - tx[i]) * u;
+        float ttz = tz[i] + (tz[i + 1] - tz[i]) * u;
+        float l = (float) Math.hypot(ttx, ttz);
+        if (l < 1e-6f) {
+            ttx = tx[i];
+            ttz = tz[i];
+            l = 1.0f;
+        }
+        out[3] = ttx / l;
+        out[4] = ttz / l;
+    }
+    
     private static double bezier(double p0, double p1, double p2, double p3, double t) {
         double u = 1 - t;
         return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
