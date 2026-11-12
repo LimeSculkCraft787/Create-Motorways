@@ -2,6 +2,7 @@ package com.sculkcrafterthefirst.motorways;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.function.Function;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -63,10 +64,11 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
                        MultiBufferSource buffer, int light, int overlay) {
         if (be.getRoads().isEmpty()) {
             return;
-    }
+        }
 
-        TextureAtlasSprite sprite = Minecraft.getInstance()
-                .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(TEXTURE);
+        Function<ResourceLocation, TextureAtlasSprite> atlas =
+                Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
+        TextureAtlasSprite sprite = atlas.apply(TEXTURE);
         float u0 = sprite.getU0();
         float u1 = sprite.getU1();
         float v0 = sprite.getV0();
@@ -142,6 +144,82 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
                         curve.x[last] + epx * a1, curve.y[last] + h, curve.z[last] + epz * a1,
                         curve.x[last] + epx * a0, curve.y[last] + h, curve.z[last] + epz * a0);
             }
+        }
+
+        // Markierungen (zweiter Durchgang, mit Transparenz)
+        boolean anyMarking = false;
+        for (RoadNodeBlockEntity.Road road : be.getRoads()) {
+            if (!road.markings.isEmpty()) {
+                anyMarking = true;
+            }
+        }
+        if (anyMarking) {
+            VertexConsumer mc = buffer.getBuffer(RenderType.cutout());
+            for (RoadNodeBlockEntity.Road road : be.getRoads()) {
+                RoadCurve curve = road.curve(pos);
+                for (RoadNodeBlockEntity.Marking m : road.markings) {
+                    drawArrow(mc, pose, light, curve, atlas.apply(m.type().texture()), m);
+                }
+            }
+        }
+    }
+
+    // Zeichnet eine Markierung als Streifen, der der Kurve und Steigung folgt
+    private static void drawArrow(VertexConsumer c, PoseStack.Pose pose, int light, RoadCurve curve,
+                                  TextureAtlasSprite sprite, RoadNodeBlockEntity.Marking m) {
+        float w = sprite.contents().width() / (float) MarkingType.PIXELS_PER_BLOCK;
+        float len = sprite.contents().height() / (float) MarkingType.PIXELS_PER_BLOCK;
+        double sc = m.s();
+        if (curve.length > len) {
+            sc = Math.max(len / 2.0, Math.min(curve.length - len / 2.0, sc));
+        }
+        int slices = Math.max(1, (int) Math.ceil(len * 4));
+        float u0 = sprite.getU0();
+        float u1 = sprite.getU1();
+        float v0 = sprite.getV0();
+        float v1 = sprite.getV1();
+        float lift = HEIGHT + 0.01f;
+        float dirSign = m.reverse() ? -1f : 1f;
+
+        float[] p = new float[5];
+        float prevLx = 0;
+        float prevLz = 0;
+        float prevRx = 0;
+        float prevRz = 0;
+        float prevY = 0;
+        float prevV = 0;
+
+        for (int k = 0; k <= slices; k++) {
+            float frac = (float) k / slices;
+            double along = frac * len;
+            double s = m.reverse() ? sc + len / 2.0 - along : sc - len / 2.0 + along;
+            curve.at(s, p);
+
+            float rx = -p[4] * dirSign;
+            float rz = p[3] * dirSign;
+            float bx = p[0] + (-p[4]) * (float) m.lat();
+            float bz = p[2] + p[3] * (float) m.lat();
+            float y = p[1] + lift;
+
+            float lx = bx - rx * w / 2f;
+            float lz = bz - rz * w / 2f;
+            float rrx = bx + rx * w / 2f;
+            float rrz = bz + rz * w / 2f;
+            float v = v1 - (v1 - v0) * frac;
+
+            if (k > 0) {
+                quad(c, pose, light, 0, 1, 0, u0, u1, prevV, v,
+                        prevLx, prevY, prevLz,
+                        prevRx, prevY, prevRz,
+                        rrx, y, rrz,
+                        lx, y, lz);
+            }
+            prevLx = lx;
+            prevLz = lz;
+            prevRx = rrx;
+            prevRz = rrz;
+            prevY = y;
+            prevV = v;
         }
     }
 
