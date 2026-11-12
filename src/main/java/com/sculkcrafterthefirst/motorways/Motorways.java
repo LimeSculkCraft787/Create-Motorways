@@ -1,9 +1,11 @@
 package com.sculkcrafterthefirst.motorways;
 
 import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.registries.DeferredItem;
 
 @Mod(Motorways.MODID)
 public class Motorways {
@@ -20,6 +22,9 @@ public class Motorways {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.SINGLE_ROAD);
             event.accept(ModItems.DOUBLE_ROAD);
+            for (DeferredItem<Item> item : ModItems.MARKINGS.values()) {
+                event.accept(item);
+            }
         }
     }
 }
