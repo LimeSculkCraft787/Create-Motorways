@@ -1,4 +1,12 @@
 {
   "item.motorways.single_road": "Einspurige Straße",
-  "item.motorways.double_road": "Zweispurige Straße"
+  "item.motorways.double_road": "Zweispurige Straße",
+  "item.motorways.arrow_onwards": "Pfeil geradeaus",
+  "item.motorways.arrow_left": "Pfeil links",
+  "item.motorways.arrow_right": "Pfeil rechts",
+  "item.motorways.arrow_left_right": "Pfeil links/rechts",
+  "item.motorways.arrow_onwards_left": "Pfeil geradeaus/links",
+  "item.motorways.arrow_onwards_right": "Pfeil geradeaus/rechts",
+  "item.motorways.arrow_left_stretched": "Pfeil links (gestreckt)",
+  "item.motorways.arrow_right_stretched": "Pfeil rechts (gestreckt)"
 }
