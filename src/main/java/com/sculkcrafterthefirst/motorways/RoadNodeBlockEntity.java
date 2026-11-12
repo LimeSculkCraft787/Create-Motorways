@@ -22,6 +22,10 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public record Arm(double dx, double dz, int width, double offset) {
     }
 
+    // Eine Markierung auf einer Straße: Bogenlänge, Seitenabstand von der Mitte, Richtung umgekehrt?
+    public record Marking(MarkingType type, double s, double lat, boolean reverse) {
+    }
+
     // Eine Straße, die an diesem Knoten beginnt
     public static class Road {
         public final BlockPos target;
@@ -32,6 +36,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
         public final double edz;
         public final double so;
         public final double eo;
+        public final List<Marking> markings = new ArrayList<>();
         private RoadCurve curve;
 
         public Road(BlockPos target, int width, double sdx, double sdz, double edx, double edz,
@@ -87,13 +92,33 @@ public class RoadNodeBlockEntity extends BlockEntity {
             t.putDouble("edz", edz);
             t.putDouble("so", so);
             t.putDouble("eo", eo);
+            ListTag marks = new ListTag();
+            for (Marking m : markings) {
+                CompoundTag mt = new CompoundTag();
+                mt.putString("type", m.type().id);
+                mt.putDouble("s", m.s());
+                mt.putDouble("lat", m.lat());
+                mt.putBoolean("rev", m.reverse());
+                marks.add(mt);
+            }
+            t.put("marks", marks);
             return t;
         }
 
         static Road load(CompoundTag t) {
-            return new Road(BlockPos.of(t.getLong("target")), t.getInt("width"),
+            Road road = new Road(BlockPos.of(t.getLong("target")), t.getInt("width"),
                     t.getDouble("sdx"), t.getDouble("sdz"), t.getDouble("edx"), t.getDouble("edz"),
                     t.getDouble("so"), t.getDouble("eo"));
+            ListTag marks = t.getList("marks", Tag.TAG_COMPOUND);
+            for (int i = 0; i < marks.size(); i++) {
+                CompoundTag mt = marks.getCompound(i);
+                MarkingType type = MarkingType.byId(mt.getString("type"));
+                if (type != null) {
+                    road.markings.add(new Marking(type, mt.getDouble("s"), mt.getDouble("lat"),
+                            mt.getBoolean("rev")));
+                }
+            }
+            return road;
         }
     }
 
@@ -171,6 +196,11 @@ public class RoadNodeBlockEntity extends BlockEntity {
             }
         }
         return null;
+    }
+
+    // Nach dem Ändern von Markierungen aufrufen
+    public void markingsChanged() {
+        sync();
     }
 
     private void sync() {
