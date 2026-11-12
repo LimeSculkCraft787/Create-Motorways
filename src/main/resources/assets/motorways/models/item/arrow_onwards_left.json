@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": { "layer0": "motorways:block/marking/arrow_onwards_left" }
+}
