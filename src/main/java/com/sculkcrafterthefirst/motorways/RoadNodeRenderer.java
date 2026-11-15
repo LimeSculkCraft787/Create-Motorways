@@ -1,4 +1,4 @@
-package com.sculkcrafterthefirst.motorways;
+    package com.sculkcrafterthefirst.motorways;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -167,8 +167,9 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
     // Zeichnet eine Markierung als Streifen, der der Kurve und Steigung folgt
     private static void drawArrow(VertexConsumer c, PoseStack.Pose pose, int light, RoadCurve curve,
                                   TextureAtlasSprite sprite, RoadNodeBlockEntity.Marking m) {
-        float w = sprite.contents().width() / (float) MarkingType.PIXELS_PER_BLOCK;
-        float len = sprite.contents().height() / (float) MarkingType.PIXELS_PER_BLOCK;
+        float ppb = Config.PIXELS_PER_BLOCK.get();
+        float w = sprite.contents().width() / ppb;
+        float len = sprite.contents().height() / ppb;
         double sc = m.s();
         if (curve.length > len) {
             sc = Math.max(len / 2.0, Math.min(curve.length - len / 2.0, sc));
