@@ -19,8 +19,9 @@ public class RoadLocator {
         Hit best = null;
         double bestScore = Double.MAX_VALUE;
 
-        for (int cxo = -3; cxo <= 3; cxo++) {
-            for (int czo = -3; czo <= 3; czo++) {
+        int radius = Config.MAX_ROAD_LENGTH.get() / 16 + 2;
+        for (int cxo = -radius; cxo <= radius; cxo++) {
+            for (int czo = -radius; czo <= radius; czo++) {
                 if (!level.hasChunk(pcx + cxo, pcz + czo)) {
                     continue;
                 }
