@@ -56,7 +56,7 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
 
     @Override
     public int getViewDistance() {
-        return 128;
+        return Config.ROAD_VIEW_DISTANCE.get();
     }
 
     @Override
