@@ -35,7 +35,6 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 public class RoadPreview {
     private static final ResourceLocation WHITE =
             ResourceLocation.withDefaultNamespace("block/white_concrete");
-    private static final int NODE_RADIUS_CHUNKS = 4;
 
     private static boolean hasStart(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().contains("StartX");
@@ -143,8 +142,9 @@ public class RoadPreview {
         int pcx = player.blockPosition().getX() >> 4;
         int pcz = player.blockPosition().getZ() >> 4;
 
-        for (int cxo = -NODE_RADIUS_CHUNKS; cxo <= NODE_RADIUS_CHUNKS; cxo++) {
-            for (int czo = -NODE_RADIUS_CHUNKS; czo <= NODE_RADIUS_CHUNKS; czo++) {
+        int radius = Config.NODE_HIGHLIGHT_CHUNKS.get();
+        for (int cxo = -radius; cxo <= radius; cxo++) {
+            for (int czo = -radius; czo <= radius; czo++) {
                 LevelChunk chunk = mc.level.getChunk(pcx + cxo, pcz + czo);
                 for (BlockEntity be : chunk.getBlockEntities().values()) {
                     if (!(be instanceof RoadNodeBlockEntity node)) {
