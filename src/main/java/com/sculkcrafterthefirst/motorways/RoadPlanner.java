@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 public class RoadPlanner {
-    public static final int MAX_LENGTH = 64;
     public static final int SINGLE = 5;
     public static final int DOUBLE = 11;
     public static final double LANE_OFFSET = (DOUBLE - SINGLE) / 2.0;
@@ -23,7 +22,7 @@ public class RoadPlanner {
     }
 
     private static Plan fail(String message) {
-        return new Plan(false, message, null, 0, 0, 0, 0, 0, 0);
+        return new Plan(false, message, null, 0, 0, 0, 0, 0, 0);    
     }
 
     private static List<RoadNodeBlockEntity.Arm> nodeArms(Level level, BlockPos pos) {
@@ -103,11 +102,12 @@ public class RoadPlanner {
         double chord = Math.sqrt(dx * dx + dz * dz);
         if (chord < 2) {
             return fail("Zu kurz");
+        }        
+        int maxLength = Config.MAX_ROAD_LENGTH.get();
+        if (Math.sqrt(start.distSqr(end)) > maxLength) {
+            return fail("Zu weit entfernt (max. " + maxLength + " Blöcke)");
         }
-        if (Math.sqrt(start.distSqr(end)) > MAX_LENGTH) {
-            return fail("Zu weit entfernt (max. " + MAX_LENGTH + " Blöcke)");
-        }
-
+        
         boolean startExisting = level.getBlockState(start).is(ModBlocks.ROAD_NODE.get());
         boolean endExisting = level.getBlockState(end).is(ModBlocks.ROAD_NODE.get());
         if (!startExisting && !level.getBlockState(start).canBeReplaced()) {
