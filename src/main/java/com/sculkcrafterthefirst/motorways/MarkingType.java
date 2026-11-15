@@ -12,9 +12,6 @@ public enum MarkingType {
     LEFT_STRETCHED("arrow_left_stretched"),
     RIGHT_STRETCHED("arrow_right_stretched");
 
-    // So viele Texturpixel sind ein Block
-    public static final int PIXELS_PER_BLOCK = 96;
-
     public final String id;
 
     MarkingType(String id) {
