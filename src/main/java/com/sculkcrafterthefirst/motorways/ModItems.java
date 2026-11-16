@@ -13,6 +13,8 @@ public class ModItems {
             () -> new RoadItem(new Item.Properties(), 5));
     public static final DeferredItem<Item> DOUBLE_ROAD = ITEMS.register("double_road",
             () -> new RoadItem(new Item.Properties(), 11));
+    public static final DeferredItem<Item> ERASER = ITEMS.register("marking_eraser",
+            () -> new EraserItem(new Item.Properties().stacksTo(1)));
 
     public static final Map<MarkingType, DeferredItem<Item>> MARKINGS = new EnumMap<>(MarkingType.class);
 
