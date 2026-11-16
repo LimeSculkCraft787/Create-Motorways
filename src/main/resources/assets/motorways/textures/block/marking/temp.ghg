@@ -1,3 +1,8 @@
-ich habe zwei parameter geändert: 
-MAX_LENGTH = 64 in RoadPlanner.java
-PIXELS_PER_BLOCK = 96 in MarkingType.java
+Sehr gut. Kannst du eine funktion hinzufügen, das wenn irgendeine create-schiene im bereich einer straße ist, die schiene non-solid zu machen (damit es keine glitches gibt beim darüberfahren mit IV)
+
+Außerdem eine Roadmap für später: 
+- Seitenlinien
+- Config mit Modmenu kompatibel machen
+- Mehrspurige Straßen
+- Betonstraßen
+- Internationale Markierungen (CH, GB, FR, usw.)
