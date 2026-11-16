@@ -1,6 +1,9 @@
 Sehr gut. Kannst du eine funktion hinzufügen, das wenn irgendeine create-schiene im bereich einer straße ist, die schiene non-solid zu machen (damit es keine glitches gibt beim darüberfahren mit Immersive Vehicles)? Ich weiß nicht ob das möglich ist, aber wenn ja wäre es supi.
 
 Außerdem eine Roadmap für später (keine feste Reihenfolge): 
+- BUG: Wenn man versucht ein Straßendreieck zu machen bei dem zwei der Endpunkte auf der selben X/Y-Koordinate sind, gibt es bei der letzten Seite des Dreiecks die Blickrichtungsfehlermeldung.
+- BUG: Direkt am Straßenrande kann man in östlicher Richtung keine Blöcke platzieren, es geht erst einen Block weiter.
+
 - Seitenlinien
 - Config mit Modmenu kompatibel machen
 - Mehrspurige Straßen
