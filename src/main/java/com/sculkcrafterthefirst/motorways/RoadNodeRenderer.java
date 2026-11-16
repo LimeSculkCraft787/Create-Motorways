@@ -19,6 +19,8 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
     private static final float HEIGHT = 5f / 16f;
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Motorways.MODID, "block/asphalt");
+    private static final ResourceLocation WHITE =
+            ResourceLocation.withDefaultNamespace("block/white_concrete");
 
     public RoadNodeRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -149,7 +151,7 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
         // Markierungen (zweiter Durchgang, mit Transparenz)
         boolean anyMarking = false;
         for (RoadNodeBlockEntity.Road road : be.getRoads()) {
-            if (!road.markings.isEmpty()) {
+            if (!road.markings.isEmpty() || !road.lines.isEmpty()) {
                 anyMarking = true;
             }
         }
