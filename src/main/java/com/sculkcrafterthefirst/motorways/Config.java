@@ -16,12 +16,12 @@ public class Config {
         MAX_ROAD_LENGTH = server
                 .comment("Maximale Länge einer Straße in Blöcken (Luftlinie zwischen Start und Ende)")
                 .defineInRange("maxRoadLength", 64, 4, 256);
+        PIXELS_PER_BLOCK = server
+                .comment("Texturpixel pro Block bei den Markierungen (Pfeile). 16 = Standard-Minecraft-Auflösung")
+                .defineInRange("pixelsPerBlock", 96, 1, 1024);
         SERVER_SPEC = server.build();
 
         ModConfigSpec.Builder client = new ModConfigSpec.Builder();
-        PIXELS_PER_BLOCK = client
-                .comment("Texturpixel pro Block bei den Markierungen (Pfeile). 16 = Standard-Minecraft-Auflösung")
-                .defineInRange("pixelsPerBlock", 96, 1, 1024);
         ROAD_VIEW_DISTANCE = client
                 .comment("Bis zu dieser Entfernung (in Blöcken) werden Straßen gezeichnet")
                 .defineInRange("roadViewDistance", 128, 32, 512);
