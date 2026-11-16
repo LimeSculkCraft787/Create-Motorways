@@ -162,10 +162,69 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
                 for (RoadNodeBlockEntity.Marking m : road.markings) {
                     drawArrow(mc, pose, light, curve, atlas.apply(m.type().texture()), m);
                 }
+                TextureAtlasSprite white = atlas.apply(WHITE);
+                double ppb = Config.PIXELS_PER_BLOCK.get();
+                float lineHalf = (float) (Config.LINE_WIDTH_PIXELS.get() / ppb / 2.0);
+                double dash = Config.DASH_LENGTH.get();
+                double gap = Config.DASH_GAP.get();
+                for (RoadNodeBlockEntity.Line line : road.lines) {
+                    if (line.type() == LineType.SOLID) {
+                        drawStrip(mc, pose, light, curve, white, line.s0(), line.s1(), lineHalf);
+                    } else {
+                        for (double a = line.s0(); a < line.s1() - 1e-6; a += dash + gap) {
+                            drawStrip(mc, pose, light, curve, white, a,
+                                    Math.min(a + dash, line.s1()), lineHalf);
+                        }
+                    }
+                }
             }
         }
     }
+    
+    // Zeichnet einen schmalen Streifen entlang der Straßenmitte von Bogenlänge sA bis sB
+    private static void drawStrip(VertexConsumer c, PoseStack.Pose pose, int light, RoadCurve curve,
+                                  TextureAtlasSprite sprite, double sA, double sB, float halfWidth) {
+        double a = Math.max(0.0, sA);
+        double b = Math.min(curve.length, sB);
+        if (b - a < 1e-6) {
+            return;
+        }
+        int slices = Math.max(1, (int) Math.ceil((b - a) / 0.25));
+        float u = (sprite.getU0() + sprite.getU1()) / 2f;
+        float v = (sprite.getV0() + sprite.getV1()) / 2f;
+        float lift = HEIGHT + 0.01f;
 
+        float[] p = new float[5];
+        float prevLx = 0;
+        float prevLz = 0;
+        float prevRx = 0;
+        float prevRz = 0;
+        float prevY = 0;
+        for (int k = 0; k <= slices; k++) {
+            double s = a + (b - a) * k / slices;
+            curve.at(s, p);
+            float px = -p[4];
+            float pz = p[3];
+            float lx = p[0] + px * halfWidth;
+            float lz = p[2] + pz * halfWidth;
+            float rx = p[0] - px * halfWidth;
+            float rz = p[2] - pz * halfWidth;
+            float y = p[1] + lift;
+            if (k > 0) {
+                quad(c, pose, light, 0, 1, 0, u, u, v, v,
+                        prevLx, prevY, prevLz,
+                        prevRx, prevY, prevRz,
+                        rx, y, rz,
+                        lx, y, lz);
+            }
+            prevLx = lx;
+            prevLz = lz;
+            prevRx = rx;
+            prevRz = rz;
+            prevY = y;
+        }
+    }
+    
     // Zeichnet eine Markierung als Streifen, der der Kurve und Steigung folgt
     private static void drawArrow(VertexConsumer c, PoseStack.Pose pose, int light, RoadCurve curve,
                                   TextureAtlasSprite sprite, RoadNodeBlockEntity.Marking m) {
