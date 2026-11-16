@@ -52,6 +52,14 @@ public class LineItem extends Item {
         return InteractionResult.SUCCESS;
     }
 
+    private static void setStart(ItemStack stack, BlockPos nodePos, BlockPos target, double s) {
+        CompoundTag t = new CompoundTag();
+        t.putLong("LineNode", nodePos.asLong());
+        t.putLong("LineTarget", target.asLong());
+        t.putDouble("LineS", s);
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(t));
+    }
+
     private void run(Level level, Player player, ItemStack stack) {
         if (player.isShiftKeyDown()) {
             stack.remove(DataComponents.CUSTOM_DATA);
@@ -75,34 +83,55 @@ public class LineItem extends Item {
         double s = Math.round(road.s() * ppb) / ppb;
         s = Math.max(0.0, Math.min(roadLen, s));
 
+        // Gespeicherten Anfang suchen
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        boolean hasStart = tag.contains("LineNode");
-        boolean sameRoad = hasStart
-                && BlockPos.of(tag.getLong("LineNode")).equals(nodePos)
-                && BlockPos.of(tag.getLong("LineTarget")).equals(target);
-
-        if (!hasStart || !sameRoad) {
-            // Anfang setzen (oder auf einer anderen Straße neu beginnen)
-            CompoundTag t = new CompoundTag();
-            t.putLong("LineNode", nodePos.asLong());
-            t.putLong("LineTarget", target.asLong());
-            t.putDouble("LineS", s);
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(t));
-            MarkingTools.msg(player, hasStart ? "Neuer Linienanfang auf dieser Straße gesetzt"
-                    : "Linienanfang gesetzt");
-            return;
+        RoadNodeBlockEntity startNode = null;
+        RoadNodeBlockEntity.Road startRoad = null;
+        if (tag.contains("LineNode")) {
+            BlockPos sp = BlockPos.of(tag.getLong("LineNode"));
+            BlockPos st = BlockPos.of(tag.getLong("LineTarget"));
+            if (level.hasChunkAt(sp) && level.getBlockEntity(sp) instanceof RoadNodeBlockEntity sn) {
+                for (RoadNodeBlockEntity.Road r : sn.getRoads()) {
+                    if (r.target.equals(st)) {
+                        startNode = sn;
+                        startRoad = r;
+                    }
+                }
+            }
         }
 
+        if (startRoad == null) {
+            setStart(stack, nodePos, target, s);
+            MarkingTools.msg(player, "Linienanfang gesetzt");
+            return;
+        }
         double s0 = tag.getDouble("LineS");
-        double a = Math.min(s0, s);
-        double b = Math.max(s0, s);
-        if (b - a < 1.0 / ppb) {
-            MarkingTools.msg(player, "Zu kurz");
+
+        // Ende auf derselben Straße
+        if (startRoad == road.road()) {
+            double a = Math.min(s0, s);
+            double b = Math.max(s0, s);
+            if (b - a < 1.0 / ppb) {
+                MarkingTools.msg(player, "Zu kurz");
+                return;
+            }
+            MarkingTools.addLine(road.road().lines, new RoadNodeBlockEntity.Line(type, a, b, 0, s < s0));
+            road.node().markingsChanged();
+            stack.remove(DataComponents.CUSTOM_DATA);
+            MarkingTools.msg(player, "Linie gesetzt, Länge " + String.format("%.2f", b - a) + " Blöcke");
             return;
         }
-        MarkingTools.addLine(road.road().lines, new RoadNodeBlockEntity.Line(type, a, b));
-        road.node().markingsChanged();
+
+        // Ende auf einer anderen Straße: Weg über verbundene Stücke suchen
+        RoadGraph.Route route = RoadGraph.find(level, startNode, startRoad, s0, road.node(), road.road(), s);
+        if (route == null) {
+            setStart(stack, nodePos, target, s);
+            MarkingTools.msg(player, "Nicht verbunden - neuer Linienanfang gesetzt");
+            return;
+        }
+        double total = RoadGraph.apply(type, route, startNode, startRoad, s0, road.node(), road.road(), s);
         stack.remove(DataComponents.CUSTOM_DATA);
-        MarkingTools.msg(player, "Linie gesetzt, Länge " + String.format("%.2f", b - a) + " Blöcke");
+        MarkingTools.msg(player, "Linie gesetzt über " + (route.legs().size() + 2)
+                + " Straßenstücke, Länge " + String.format("%.1f", total) + " Blöcke");
     }
 }
