@@ -1,5 +1,6 @@
 package com.sculkcrafterthefirst.motorways;
 
+import com.mojang.logging.LogUtils;
 import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -14,8 +15,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
 
 public class MarkingItem extends Item {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private final MarkingType type;
 
     public MarkingItem(Properties properties, MarkingType type) {
@@ -45,7 +48,16 @@ public class MarkingItem extends Item {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
+        try {
+            return run(level, player);
+        } catch (Exception e) {
+            LOGGER.error("Fehler beim Bearbeiten einer Markierung", e);
+            msg(player, "Fehler: " + e);
+            return InteractionResult.SUCCESS;
+        }
+    }
 
+    private InteractionResult run(Level level, Player player) {
         // Eigener Strahl gegen die Kollision, damit wir die Straßenoberfläche genau treffen
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
