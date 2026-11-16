@@ -26,6 +26,10 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public record Marking(MarkingType type, double s, double lat, boolean reverse) {
     }
 
+    // Eine Linie entlang der Straßenmitte von Bogenlänge s0 bis s1
+    public record Line(LineType type, double s0, double s1) {
+    }
+
     // Eine Straße, die an diesem Knoten beginnt
     public static class Road {
         public final BlockPos target;
