@@ -17,11 +17,16 @@ public class ModItems {
             () -> new EraserItem(new Item.Properties().stacksTo(1)));
 
     public static final Map<MarkingType, DeferredItem<Item>> MARKINGS = new EnumMap<>(MarkingType.class);
+    public static final Map<LineType, DeferredItem<Item>> LINES = new EnumMap<>(LineType.class);
 
     static {
         for (MarkingType type : MarkingType.values()) {
             MARKINGS.put(type, ITEMS.register(type.id,
                     () -> new MarkingItem(new Item.Properties(), type)));
+        }
+        for (LineType type : LineType.values()) {
+            LINES.put(type, ITEMS.register(type.id,
+                    () -> new LineItem(new Item.Properties(), type)));
         }
     }
 }
