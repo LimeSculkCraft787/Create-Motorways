@@ -2,7 +2,7 @@ Sehr gut. Kannst du eine funktion hinzufügen, das wenn irgendeine create-schien
 
 Außerdem eine Roadmap für später (keine feste Reihenfolge): 
 - BUG: Wenn man versucht ein Straßendreieck zu machen bei dem zwei der Endpunkte auf der selben X/Y-Koordinate sind, gibt es bei der letzten Seite des Dreiecks die Blickrichtungsfehlermeldung.
-- BUG: Direkt am Straßenrande kann man in östlicher Richtung keine Blöcke platzieren, es geht erst einen Block weiter.
+- BUG: Direkt am Straßenrande kann man in östlicher Richtung keine Blöcke platzieren, es geht erst einen Block weiter. (Double & Single)
 
 - Seitenlinien
 - Config mit Modmenu kompatibel machen
