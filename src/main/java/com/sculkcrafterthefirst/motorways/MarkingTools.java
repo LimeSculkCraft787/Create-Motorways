@@ -103,7 +103,7 @@ public class MarkingTools {
         return false;
     }
 
-    // Fügt eine Linie ein und überschreibt dabei überlappende Teile bestehender Linien
+        // Fügt eine Linie ein und überschreibt dabei überlappende Teile bestehender Linien
     public static void addLine(List<RoadNodeBlockEntity.Line> lines, RoadNodeBlockEntity.Line n) {
         List<RoadNodeBlockEntity.Line> result = new ArrayList<>();
         for (RoadNodeBlockEntity.Line l : lines) {
@@ -112,10 +112,10 @@ public class MarkingTools {
                 continue;
             }
             if (l.s0() < n.s0()) {
-                result.add(new RoadNodeBlockEntity.Line(l.type(), l.s0(), n.s0()));
+                result.add(l.sub(l.s0(), n.s0()));
             }
             if (l.s1() > n.s1()) {
-                result.add(new RoadNodeBlockEntity.Line(l.type(), n.s1(), l.s1()));
+                result.add(l.sub(n.s1(), l.s1()));
             }
         }
         result.add(n);
