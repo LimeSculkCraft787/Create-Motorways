@@ -72,40 +72,53 @@ public class MarkingItem extends Item {
             }
         }
 
+        List<RoadNodeBlockEntity.Marking> list = road.road().markings;
+
+        if (player.isShiftKeyDown()) {
+            // Entfernen: der Pfeil, auf dessen Fläche geklickt wurde
+            double roadLen = road.road().curve(road.node().getBlockPos()).length;
+            int bestIdx = -1;
+            double bestScore = Double.MAX_VALUE;
+            for (int i = 0; i < list.size(); i++) {
+                RoadNodeBlockEntity.Marking m = list.get(i);
+                double len = m.type().lengthBlocks();
+                double halfLen = len / 2.0 + 0.3;
+                double halfWidth = m.type().widthBlocks() / 2.0 + 0.3;
+                double center = m.s();
+                if (roadLen > len) {
+                    center = Math.max(len / 2.0, Math.min(roadLen - len / 2.0, center));
+                }
+                double ds = Math.abs(center - road.s());
+                double dl = Math.abs(m.lat() - road.lat());
+                if (ds > halfLen || dl > halfWidth) {
+                    continue;
+                }
+                double score = ds / halfLen + dl / halfWidth;
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestIdx = i;
+                }
+            }
+            if (bestIdx < 0) {
+                msg(player, "Kein Pfeil an dieser Stelle");
+            } else {
+                list.remove(bestIdx);
+                road.node().markingsChanged();
+                msg(player, "Pfeil entfernt");
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        // Setzen: auf 1 Pixel gerastet, Spurmitte bei der Zweispur
         double s = Math.round(road.s() * 16.0) / 16.0;
         double lat = 0.0;
         if (road.road().width == RoadPlanner.DOUBLE) {
             lat = road.lat() >= 0 ? RoadPlanner.LANE_OFFSET : -RoadPlanner.LANE_OFFSET;
         }
         boolean reverse = road.tx() * look.x + road.tz() * look.z < 0;
-        List<RoadNodeBlockEntity.Marking> list = road.road().markings;
-
-        if (player.isShiftKeyDown()) {
-            int bestIdx = -1;
-            double bestD = 3.0;
-            for (int i = 0; i < list.size(); i++) {
-                RoadNodeBlockEntity.Marking m = list.get(i);
-                if (Math.abs(m.lat() - lat) > 2.0) {
-                    continue;
-                }
-                double d = Math.abs(m.s() - road.s());
-                if (d < bestD) {
-                    bestD = d;
-                    bestIdx = i;
-                }
-            }
-            if (bestIdx < 0) {
-                msg(player, "Kein Pfeil in der Nähe");
-            } else {
-                list.remove(bestIdx);
-                road.node().markingsChanged();
-                msg(player, "Pfeil entfernt");
-            }
-        } else {
-            list.add(new RoadNodeBlockEntity.Marking(type, s, lat, reverse));
-            road.node().markingsChanged();
-            msg(player, "Pfeil gesetzt");
-        }
+        list.add(new RoadNodeBlockEntity.Marking(type, s, lat, reverse));
+        road.node().markingsChanged();
+        msg(player, "Pfeil gesetzt");
         return InteractionResult.SUCCESS;
     }
 }
