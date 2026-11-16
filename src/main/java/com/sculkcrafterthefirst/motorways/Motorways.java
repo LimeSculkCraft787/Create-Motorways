@@ -27,6 +27,7 @@ public class Motorways {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.SINGLE_ROAD);
             event.accept(ModItems.DOUBLE_ROAD);
+                event.accept(ModItems.ERASER);
             for (DeferredItem<Item> item : ModItems.MARKINGS.values()) {
                 event.accept(item);
             }
