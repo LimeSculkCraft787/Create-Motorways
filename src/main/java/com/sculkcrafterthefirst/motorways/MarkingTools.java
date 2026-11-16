@@ -1,5 +1,7 @@
 package com.sculkcrafterthefirst.motorways;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
@@ -43,9 +45,16 @@ public class MarkingTools {
         return road;
     }
 
-    // Entfernt die Markierung, auf deren Fläche der Treffer liegt
+    // Entfernt die Markierung (Pfeil oder Linie) an der getroffenen Stelle
     public static boolean removeAt(RoadLocator.Hit road) {
-        java.util.List<RoadNodeBlockEntity.Marking> list = road.road().markings;
+        if (removeArrowAt(road)) {
+            return true;
+        }
+        return removeLineAt(road);
+    }
+
+    private static boolean removeArrowAt(RoadLocator.Hit road) {
+        List<RoadNodeBlockEntity.Marking> list = road.road().markings;
         double roadLen = road.road().curve(road.node().getBlockPos()).length;
         int bestIdx = -1;
         double bestScore = Double.MAX_VALUE;
@@ -75,5 +84,42 @@ public class MarkingTools {
         list.remove(bestIdx);
         road.node().markingsChanged();
         return true;
+    }
+
+    // Linien liegen in der Straßenmitte, getroffen wird in einem schmalen Bereich darum
+    private static boolean removeLineAt(RoadLocator.Hit road) {
+        if (Math.abs(road.lat()) > 0.6) {
+            return false;
+        }
+        List<RoadNodeBlockEntity.Line> lines = road.road().lines;
+        for (int i = 0; i < lines.size(); i++) {
+            RoadNodeBlockEntity.Line l = lines.get(i);
+            if (road.s() >= l.s0() - 0.1 && road.s() <= l.s1() + 0.1) {
+                lines.remove(i);
+                road.node().markingsChanged();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Fügt eine Linie ein und überschreibt dabei überlappende Teile bestehender Linien
+    public static void addLine(List<RoadNodeBlockEntity.Line> lines, RoadNodeBlockEntity.Line n) {
+        List<RoadNodeBlockEntity.Line> result = new ArrayList<>();
+        for (RoadNodeBlockEntity.Line l : lines) {
+            if (l.s1() <= n.s0() || l.s0() >= n.s1()) {
+                result.add(l);
+                continue;
+            }
+            if (l.s0() < n.s0()) {
+                result.add(new RoadNodeBlockEntity.Line(l.type(), l.s0(), n.s0()));
+            }
+            if (l.s1() > n.s1()) {
+                result.add(new RoadNodeBlockEntity.Line(l.type(), n.s1(), l.s1()));
+            }
+        }
+        result.add(n);
+        lines.clear();
+        lines.addAll(result);
     }
 }
