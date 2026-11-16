@@ -26,8 +26,14 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public record Marking(MarkingType type, double s, double lat, boolean reverse) {
     }
 
-    // Eine Linie entlang der Straßenmitte von Bogenlänge s0 bis s1
-    public record Line(LineType type, double s0, double s1) {
+    // Eine Linie entlang der Straßenmitte von Bogenlänge s0 bis s1.
+    // phase: Position im Strichmuster am Musterursprung (bei reverse = true liegt dieser bei s1, sonst bei s0)
+    public record Line(LineType type, double s0, double s1, double phase, boolean reverse) {
+        // Teilstück von a bis b, das Strichmuster bleibt an derselben Stelle
+        public Line sub(double a, double b) {
+            double ph = reverse ? phase + (s1 - b) : phase + (a - s0);
+            return new Line(type, a, b, ph, reverse);
+        }
     }
 
     // Eine Straße, die an diesem Knoten beginnt
@@ -113,7 +119,9 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 lt.putString("type", l.type().id);
                 lt.putDouble("s0", l.s0());
                 lt.putDouble("s1", l.s1());
-                lineList.add(lt);
+                lt.putDouble("phase", l.phase());
+                lt.putBoolean("rev", l.reverse());
+                lineList.add(lt);    
             }
             t.put("lines", lineList);
             return t;
@@ -137,7 +145,8 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 CompoundTag lt = lineList.getCompound(i);
                 LineType lineType = LineType.byId(lt.getString("type"));
                 if (lineType != null) {
-                    road.lines.add(new Line(lineType, lt.getDouble("s0"), lt.getDouble("s1")));
+                    road.lines.add(new Line(lineType, lt.getDouble("s0"), lt.getDouble("s1"),
+                            lt.getDouble("phase"), lt.getBoolean("rev")));
                 }
             }
             return road;
