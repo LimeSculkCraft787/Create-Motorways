@@ -2,6 +2,8 @@
   "item.motorways.single_road": "Einspurige Straße",
   "item.motorways.double_road": "Zweispurige Straße",
   "item.motorways.marking_eraser": "Markierungs-Radierer",
+  "item.motorways.line_solid": "Durchgezogene Mittellinie",
+  "item.motorways.line_dashed": "Gestrichelte Mittellinie",
   "item.motorways.arrow_onwards": "Pfeil geradeaus",
   "item.motorways.arrow_left": "Pfeil links",
   "item.motorways.arrow_right": "Pfeil rechts",
