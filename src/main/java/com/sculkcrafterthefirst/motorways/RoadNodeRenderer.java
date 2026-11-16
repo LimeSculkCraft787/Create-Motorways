@@ -170,10 +170,27 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
                 for (RoadNodeBlockEntity.Line line : road.lines) {
                     if (line.type() == LineType.SOLID) {
                         drawStrip(mc, pose, light, curve, white, line.s0(), line.s1(), lineHalf);
-                    } else {
-                        for (double a = line.s0(); a < line.s1() - 1e-6; a += dash + gap) {
-                            drawStrip(mc, pose, light, curve, white, a,
-                                    Math.min(a + dash, line.s1()), lineHalf);
+                        continue;
+                    }
+                    // Gestrichelt: das Muster beginnt am Musterursprung der Linie
+                    double period = dash + gap;
+                    double total = line.s1() - line.s0();
+                    double pp = line.phase() % period;
+                    double t = 0;
+                    while (t < total - 1e-6) {
+                        boolean on = pp < dash - 1e-9;
+                        double seg = Math.min(on ? dash - pp : period - pp, total - t);
+                        if (on) {
+                            double from = t;
+                            double to = t + seg;
+                            double sa = line.reverse() ? line.s1() - to : line.s0() + from;
+                            double sb = line.reverse() ? line.s1() - from : line.s0() + to;
+                            drawStrip(mc, pose, light, curve, white, sa, sb, lineHalf);
+                        }
+                        t += seg;
+                        pp += seg;
+                        if (pp >= period - 1e-9) {
+                            pp = 0;
                         }
                     }
                 }
