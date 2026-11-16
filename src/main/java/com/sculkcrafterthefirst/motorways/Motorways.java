@@ -31,6 +31,9 @@ public class Motorways {
             for (DeferredItem<Item> item : ModItems.MARKINGS.values()) {
                 event.accept(item);
             }
+            for (DeferredItem<Item> item : ModItems.LINES.values()) {
+                event.accept(item);
+            }
         }
     }
 }
