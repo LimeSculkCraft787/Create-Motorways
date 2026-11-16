@@ -41,6 +41,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
         public final double so;
         public final double eo;
         public final List<Marking> markings = new ArrayList<>();
+        public final List<Line> lines = new ArrayList<>();
         private RoadCurve curve;
 
         public Road(BlockPos target, int width, double sdx, double sdz, double edx, double edz,
@@ -106,6 +107,15 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 marks.add(mt);
             }
             t.put("marks", marks);
+            ListTag lineList = new ListTag();
+            for (Line l : lines) {
+                CompoundTag lt = new CompoundTag();
+                lt.putString("type", l.type().id);
+                lt.putDouble("s0", l.s0());
+                lt.putDouble("s1", l.s1());
+                lineList.add(lt);
+            }
+            t.put("lines", lineList);
             return t;
         }
 
@@ -120,6 +130,14 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 if (type != null) {
                     road.markings.add(new Marking(type, mt.getDouble("s"), mt.getDouble("lat"),
                             mt.getBoolean("rev")));
+                }
+            }
+            ListTag lineList = t.getList("lines", Tag.TAG_COMPOUND);
+            for (int i = 0; i < lineList.size(); i++) {
+                CompoundTag lt = lineList.getCompound(i);
+                LineType lineType = LineType.byId(lt.getString("type"));
+                if (lineType != null) {
+                    road.lines.add(new Line(lineType, lt.getDouble("s0"), lt.getDouble("s1")));
                 }
             }
             return road;
