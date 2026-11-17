@@ -15,6 +15,7 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.Level;
 
 public class RoadNodeBlockEntity extends BlockEntity {
 
@@ -233,7 +234,21 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public void markingsChanged() {
         sync();
     }
+    
+    @Override
+    public void setLevel(Level level) {
+        super.setLevel(level);
+        RoadAreas.register(level, worldPosition);
+    }
 
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level != null) {
+            RoadAreas.unregister(level, worldPosition);
+        }
+    }
+    
     private void sync() {
         setChanged();
         if (level != null) {
