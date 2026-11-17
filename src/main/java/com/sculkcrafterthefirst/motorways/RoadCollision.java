@@ -1,7 +1,9 @@
 package com.sculkcrafterthefirst.motorways;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
@@ -13,9 +15,15 @@ public class RoadCollision {
 
     // Welche Blöcke das Band berührt, und wie hoch (in 1/16) die Oberkante im jeweiligen Block liegt
     public static Map<BlockPos, Integer> cells(BlockPos start, RoadCurve curve, int width) {
+        return cells(start, curve, width, false);
+    }
+
+    // legacy = true: altes Verfahren, das östlich und südlich einen Block zu viel erfasste
+    private static Map<BlockPos, Integer> cells(BlockPos start, RoadCurve curve, int width, boolean legacy) {
         Map<BlockPos, Integer> map = new HashMap<>();
         double half = width / 2.0;
         int sub = 4;
+        int steps = (int) Math.ceil(width / 0.25);
         for (int i = 0; i < curve.count - 1; i++) {
             int j = i + 1;
             for (int s = 0; s <= sub; s++) {
@@ -33,7 +41,10 @@ public class RoadCollision {
                 tz /= tl;
                 double px = -tz;
                 double pz = tx;
-                for (double a = -half; a <= half + 1e-6; a += 0.25) {
+                for (int k = 0; k <= steps; k++) {
+                    double a = legacy
+                            ? -half + 0.25 * k
+                            : -half + 0.001 + (width - 0.002) * k / steps;
                     double wx = start.getX() + cx + px * a;
                     double wz = start.getZ() + cz + pz * a;
                     double top = start.getY() + cy + HEIGHT;
@@ -64,18 +75,21 @@ public class RoadCollision {
         }
     }
 
+    // Beim Entfernen werden auch die Randblöcke des alten Verfahrens aufgeräumt
     public static void remove(Level level, BlockPos start, RoadCurve curve, int width) {
         if (curve == null) {
             return;
         }
-        for (BlockPos p : cells(start, curve, width).keySet()) {
+        Set<BlockPos> all = new HashSet<>(cells(start, curve, width, false).keySet());
+        all.addAll(cells(start, curve, width, true).keySet());
+        for (BlockPos p : all) {
             if (level.getBlockState(p).is(ModBlocks.ROAD_SEGMENT.get())) {
                 level.setBlock(p, Blocks.AIR.defaultBlockState(), 2);
             }
         }
     }
 
-        // Baut die Kollision aller Straßen, die an diesem Knoten hängen, neu auf
+    // Baut die Kollision aller Straßen, die an diesem Knoten hängen, neu auf
     public static void rebuildAt(Level level, BlockPos nodePos) {
         if (!(level.getBlockEntity(nodePos) instanceof RoadNodeBlockEntity be)) {
             return;
