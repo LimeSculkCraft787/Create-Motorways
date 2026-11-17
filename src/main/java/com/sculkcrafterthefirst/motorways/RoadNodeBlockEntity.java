@@ -252,6 +252,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
     private void sync() {
         setChanged();
         if (level != null) {
+            RoadAreas.markDirty(level);
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
     }
@@ -334,6 +335,9 @@ public class RoadNodeBlockEntity extends BlockEntity {
         } else if (tag.contains("partner")) {
             // altes Format (End-Knoten)
             incoming.add(BlockPos.of(tag.getLong("partner")));
+        }
+        if (level != null) {
+            RoadAreas.markDirty(level);
         }
     }
 
