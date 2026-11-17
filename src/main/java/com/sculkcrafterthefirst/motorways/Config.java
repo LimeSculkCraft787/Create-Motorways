@@ -1,5 +1,6 @@
 package com.sculkcrafterthefirst.motorways;
 
+import java.util.List;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class Config {
@@ -11,6 +12,7 @@ public class Config {
     public static final ModConfigSpec.IntValue LINE_WIDTH_PIXELS;
     public static final ModConfigSpec.DoubleValue DASH_LENGTH;
     public static final ModConfigSpec.DoubleValue DASH_GAP;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> TRACK_BLOCKS;
     public static final ModConfigSpec.IntValue ROAD_VIEW_DISTANCE;
     public static final ModConfigSpec.IntValue NODE_HIGHLIGHT_CHUNKS;
 
@@ -31,6 +33,13 @@ public class Config {
         DASH_GAP = server
                 .comment("Länge der Lücke bei gestrichelten Linien in Blöcken")
                 .defineInRange("dashGap", 8.0, 0.1, 64.0);
+        TRACK_BLOCKS = server
+                .comment("Blöcke (z. B. Create-Schienen), deren Kollision im Bereich einer Straße durch die "
+                        + "Straßenkollision ersetzt wird. Leere Liste = Funktion aus. Änderung erst nach Neustart.")
+                .defineListAllowEmpty("trackBlocks",
+                        List.of("create:track", "create:fake_track", "create:track_station",
+                                "create:track_signal", "create:track_observer"),
+                        () -> "create:track", o -> o instanceof String);
         SERVER_SPEC = server.build();
 
         ModConfigSpec.Builder client = new ModConfigSpec.Builder();
