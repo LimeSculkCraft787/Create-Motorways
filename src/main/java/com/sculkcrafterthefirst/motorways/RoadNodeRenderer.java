@@ -1,4 +1,4 @@
-    package com.sculkcrafterthefirst.motorways;
+package com.sculkcrafterthefirst.motorways;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -70,83 +70,42 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
 
         Function<ResourceLocation, TextureAtlasSprite> atlas =
                 Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
-        TextureAtlasSprite sprite = atlas.apply(TEXTURE);
-        float u0 = sprite.getU0();
-        float u1 = sprite.getU1();
-        float v0 = sprite.getV0();
-        float v1 = sprite.getV1();
-        float vSide = v0 + (v1 - v0) * HEIGHT;
+                TextureAtlasSprite white = atlas.apply(WHITE);
+                double ppb = Config.PIXELS_PER_BLOCK.get();
+                for (RoadNodeBlockEntity.Line line : road.lines) {
+                    boolean edgeLine = Math.abs(line.lat()) > 0.001;
+                    float lineHalf = (float) ((edgeLine ? Config.EDGE_LINE_WIDTH_PIXELS.get()
+                            : Config.LINE_WIDTH_PIXELS.get()) / ppb / 2.0);
+                    double dash = edgeLine ? Config.EDGE_DASH_LENGTH.get() : Config.DASH_LENGTH.get();
+                    double gap = edgeLine ? Config.EDGE_DASH_GAP.get() : Config.DASH_GAP.get();
+                    float lat = (float) line.lat();
 
-        VertexConsumer c = buffer.getBuffer(RenderType.solid());
-        PoseStack.Pose pose = poseStack.last();
-        BlockPos pos = be.getBlockPos();
-
-        for (RoadNodeBlockEntity.Road road : be.getRoads()) {
-            RoadCurve curve = road.curve(pos);
-            int width = road.width;
-            float half = width / 2.0f;
-            int seed = pos.hashCode() * 31 + road.target.hashCode();
-            float h = HEIGHT + ((seed >>> 3) & 15) * 0.0004f;
-
-            for (int i = 0; i < curve.count - 1; i++) {
-                int j = i + 1;
-                float pxi = -curve.tz[i];
-                float pzi = curve.tx[i];
-                float pxj = -curve.tz[j];
-                float pzj = curve.tx[j];
-
-                // Oberseite: pro Block eine Kachel, zufällig gedreht
-                for (int k = 0; k < width; k++) {
-                    float a0 = -half + k;
-                    float a1 = a0 + 1;
-                    int hash = (seed * 31 + i) * 31 + k;
-                    hash ^= hash >>> 15;
-                    hash *= 0x2c1b3c6d;
-                    hash ^= hash >>> 12;
-                    int rot = hash & 3;
-                    quadRot(c, pose, light, rot, 0, 1, 0, u0, u1, v0, v1,
-                            curve.x[i] + pxi * a0, curve.y[i] + h, curve.z[i] + pzi * a0,
-                            curve.x[i] + pxi * a1, curve.y[i] + h, curve.z[i] + pzi * a1,
-                            curve.x[j] + pxj * a1, curve.y[j] + h, curve.z[j] + pzj * a1,
-                            curve.x[j] + pxj * a0, curve.y[j] + h, curve.z[j] + pzj * a0);
+                    if (line.type() == LineType.SOLID) {
+                        drawStrip(mc, pose, light, curve, white, line.s0(), line.s1(), lat, lineHalf);
+                        continue;
+                    }
+                    // Gestrichelt: das Muster beginnt am Musterursprung der Linie
+                    double period = dash + gap;
+                    double total = line.s1() - line.s0();
+                    double pp = line.phase() % period;
+                    double t = 0;
+                    while (t < total - 1e-6) {
+                        boolean on = pp < dash - 1e-9;
+                        double seg = Math.min(on ? dash - pp : period - pp, total - t);
+                        if (on) {
+                            double from = t;
+                            double to = t + seg;
+                            double sa = line.reverse() ? line.s1() - to : line.s0() + from;
+                            double sb = line.reverse() ? line.s1() - from : line.s0() + to;
+                            drawStrip(mc, pose, light, curve, white, sa, sb, lat, lineHalf);
+                        }
+                        t += seg;
+                        pp += seg;
+                        if (pp >= period - 1e-9) {
+                            pp = 0;
+                        }
+                    }
                 }
-
-                // linke Seite
-                quad(c, pose, light, pxi, 0, pzi, u0, u1, v0, vSide,
-                        curve.x[i] + pxi * half, curve.y[i], curve.z[i] + pzi * half,
-                        curve.x[j] + pxj * half, curve.y[j], curve.z[j] + pzj * half,
-                        curve.x[j] + pxj * half, curve.y[j] + h, curve.z[j] + pzj * half,
-                        curve.x[i] + pxi * half, curve.y[i] + h, curve.z[i] + pzi * half);
-
-                // rechte Seite
-                quad(c, pose, light, -pxi, 0, -pzi, u0, u1, v0, vSide,
-                        curve.x[i] - pxi * half, curve.y[i], curve.z[i] - pzi * half,
-                        curve.x[j] - pxj * half, curve.y[j], curve.z[j] - pzj * half,
-                        curve.x[j] - pxj * half, curve.y[j] + h, curve.z[j] - pzj * half,
-                        curve.x[i] - pxi * half, curve.y[i] + h, curve.z[i] - pzi * half);
-            }
-
-            // Anfangs- und Endkappe
-            int last = curve.count - 1;
-            float spx = -curve.tz[0];
-            float spz = curve.tx[0];
-            float epx = -curve.tz[last];
-            float epz = curve.tx[last];
-            for (int k = 0; k < width; k++) {
-                float a0 = -half + k;
-                float a1 = a0 + 1;
-                quad(c, pose, light, -curve.tx[0], 0, -curve.tz[0], u0, u1, v0, vSide,
-                        curve.x[0] + spx * a0, curve.y[0], curve.z[0] + spz * a0,
-                        curve.x[0] + spx * a1, curve.y[0], curve.z[0] + spz * a1,
-                        curve.x[0] + spx * a1, curve.y[0] + h, curve.z[0] + spz * a1,
-                        curve.x[0] + spx * a0, curve.y[0] + h, curve.z[0] + spz * a0);
-                quad(c, pose, light, curve.tx[last], 0, curve.tz[last], u0, u1, v0, vSide,
-                        curve.x[last] + epx * a0, curve.y[last], curve.z[last] + epz * a0,
-                        curve.x[last] + epx * a1, curve.y[last], curve.z[last] + epz * a1,
-                        curve.x[last] + epx * a1, curve.y[last] + h, curve.z[last] + epz * a1,
-                        curve.x[last] + epx * a0, curve.y[last] + h, curve.z[last] + epz * a0);
-            }
-        }
 
         // Markierungen (zweiter Durchgang, mit Transparenz)
         boolean anyMarking = false;
@@ -198,9 +157,10 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
         }
     }
     
-    // Zeichnet einen schmalen Streifen entlang der Straßenmitte von Bogenlänge sA bis sB
+    // Zeichnet einen schmalen Streifen entlang der Straße von Bogenlänge sA bis sB,
+    // um lat seitlich von der Mitte versetzt
     private static void drawStrip(VertexConsumer c, PoseStack.Pose pose, int light, RoadCurve curve,
-                                  TextureAtlasSprite sprite, double sA, double sB, float halfWidth) {
+                                  TextureAtlasSprite sprite, double sA, double sB, float lat, float halfWidth) {
         double a = Math.max(0.0, sA);
         double b = Math.min(curve.length, sB);
         if (b - a < 1e-6) {
@@ -222,10 +182,12 @@ public class RoadNodeRenderer implements BlockEntityRenderer<RoadNodeBlockEntity
             curve.at(s, p);
             float px = -p[4];
             float pz = p[3];
-            float lx = p[0] + px * halfWidth;
-            float lz = p[2] + pz * halfWidth;
-            float rx = p[0] - px * halfWidth;
-            float rz = p[2] - pz * halfWidth;
+            float bx = p[0] + px * lat;
+            float bz = p[2] + pz * lat;
+            float lx = bx + px * halfWidth;
+            float lz = bz + pz * halfWidth;
+            float rx = bx - px * halfWidth;
+            float rz = bz - pz * halfWidth;
             float y = p[1] + lift;
             if (k > 0) {
                 quad(c, pose, light, 0, 1, 0, u, u, v, v,
