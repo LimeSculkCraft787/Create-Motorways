@@ -18,6 +18,7 @@ public class ModItems {
 
     public static final Map<MarkingType, DeferredItem<Item>> MARKINGS = new EnumMap<>(MarkingType.class);
     public static final Map<LineType, DeferredItem<Item>> LINES = new EnumMap<>(LineType.class);
+    public static final Map<LineType, DeferredItem<Item>> EDGE_LINES = new EnumMap<>(LineType.class);
 
     static {
         for (MarkingType type : MarkingType.values()) {
@@ -26,7 +27,9 @@ public class ModItems {
         }
         for (LineType type : LineType.values()) {
             LINES.put(type, ITEMS.register(type.id,
-                    () -> new LineItem(new Item.Properties(), type)));
+                    () -> new LineItem(new Item.Properties(), type, false)));
+            EDGE_LINES.put(type, ITEMS.register("edge_" + type.id,
+                    () -> new LineItem(new Item.Properties(), type, true)));
         }
     }
 }
