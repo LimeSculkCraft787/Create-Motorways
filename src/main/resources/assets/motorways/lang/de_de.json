@@ -4,6 +4,8 @@
   "item.motorways.marking_eraser": "Markierungs-Radierer",
   "item.motorways.line_solid": "Durchgezogene Mittellinie",
   "item.motorways.line_dashed": "Gestrichelte Mittellinie",
+  "item.motorways.edge_line_solid": "Durchgezogene Randlinie",
+  "item.motorways.edge_line_dashed": "Gestrichelte Randlinie",
   "item.motorways.arrow_onwards": "Pfeil geradeaus",
   "item.motorways.arrow_left": "Pfeil links",
   "item.motorways.arrow_right": "Pfeil rechts",
