@@ -27,13 +27,14 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public record Marking(MarkingType type, double s, double lat, boolean reverse) {
     }
 
-    // Eine Linie entlang der Straßenmitte von Bogenlänge s0 bis s1.
-    // phase: Position im Strichmuster am Musterursprung (bei reverse = true liegt dieser bei s1, sonst bei s0)
-    public record Line(LineType type, double s0, double s1, double phase, boolean reverse) {
+    // Eine Linie entlang der Straße von Bogenlänge s0 bis s1, seitlich um lat von der Mitte versetzt
+    // (0 = Mittellinie). phase: Position im Strichmuster am Musterursprung
+    // (bei reverse = true liegt dieser bei s1, sonst bei s0)
+    public record Line(LineType type, double s0, double s1, double phase, boolean reverse, double lat) {
         // Teilstück von a bis b, das Strichmuster bleibt an derselben Stelle
         public Line sub(double a, double b) {
             double ph = reverse ? phase + (s1 - b) : phase + (a - s0);
-            return new Line(type, a, b, ph, reverse);
+            return new Line(type, a, b, ph, reverse, lat);
         }
     }
 
@@ -110,7 +111,8 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 mt.putString("type", m.type().id);
                 mt.putDouble("s", m.s());
                 mt.putDouble("lat", m.lat());
-                mt.putBoolean("rev", m.reverse());
+                lt.putBoolean("rev", l.reverse());
+                lt.putDouble("lat", l.lat());
                 marks.add(mt);
             }
             t.put("marks", marks);
@@ -147,7 +149,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 LineType lineType = LineType.byId(lt.getString("type"));
                 if (lineType != null) {
                     road.lines.add(new Line(lineType, lt.getDouble("s0"), lt.getDouble("s1"),
-                            lt.getDouble("phase"), lt.getBoolean("rev")));
+                            lt.getDouble("phase"), lt.getBoolean("rev"), lt.getDouble("lat")));
                 }
             }
             return road;
@@ -322,7 +324,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
         if (tag.contains("roads")) {
             ListTag list = tag.getList("roads", Tag.TAG_COMPOUND);
             for (int i = 0; i < list.size(); i++) {
-                roads.add(Road.load(list.getCompound(i)));
+                roads.add(fload(list.getCompound(i)));
             }
             for (long l : tag.getLongArray("incoming")) {
                 incoming.add(BlockPos.of(l));
