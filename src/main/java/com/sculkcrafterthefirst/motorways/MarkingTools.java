@@ -86,28 +86,36 @@ public class MarkingTools {
         return true;
     }
 
-    // Linien liegen in der Straßenmitte, getroffen wird in einem schmalen Bereich darum
+    // Linien (Mittel- und Randlinien): die, deren Seitenabstand dem Treffer am nächsten liegt
     private static boolean removeLineAt(RoadLocator.Hit road) {
-        if (Math.abs(road.lat()) > 0.6) {
-            return false;
-        }
         List<RoadNodeBlockEntity.Line> lines = road.road().lines;
+        int bestIdx = -1;
+        double bestD = 0.8;
         for (int i = 0; i < lines.size(); i++) {
             RoadNodeBlockEntity.Line l = lines.get(i);
-            if (road.s() >= l.s0() - 0.1 && road.s() <= l.s1() + 0.1) {
-                lines.remove(i);
-                road.node().markingsChanged();
-                return true;
+            if (road.s() < l.s0() - 0.1 || road.s() > l.s1() + 0.1) {
+                continue;
+            }
+            double d = Math.abs(road.lat() - l.lat());
+            if (d < bestD) {
+                bestD = d;
+                bestIdx = i;
             }
         }
-        return false;
+        if (bestIdx < 0) {
+            return false;
+        }
+        lines.remove(bestIdx);
+        road.node().markingsChanged();
+        return true;
     }
 
-        // Fügt eine Linie ein und überschreibt dabei überlappende Teile bestehender Linien
+    // Fügt eine Linie ein und überschreibt dabei überlappende Teile bestehender Linien derselben Spur
     public static void addLine(List<RoadNodeBlockEntity.Line> lines, RoadNodeBlockEntity.Line n) {
         List<RoadNodeBlockEntity.Line> result = new ArrayList<>();
         for (RoadNodeBlockEntity.Line l : lines) {
-            if (l.s1() <= n.s0() || l.s0() >= n.s1()) {
+            boolean sameLane = Math.abs(l.lat() - n.lat()) < 0.001;
+            if (!sameLane || l.s1() <= n.s0() || l.s0() >= n.s1()) {
                 result.add(l);
                 continue;
             }
