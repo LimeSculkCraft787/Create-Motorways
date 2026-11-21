@@ -167,8 +167,8 @@ public class RoadPlanner {
                 if (ce.lane()) {
                     eo = laneSide(bestArm, end, hitX, hitZ) * LANE_OFFSET;
                     endInfo = "Ende: Spur";
-                } else if (best < 0.2 || (lookX * cx0 + lookZ * cz0 > 0.9 && best < 0.99)) {
-                    // Eckverbindung: Die Straße kommt gerade am Knoten an
+                } else if (best < 0.2) {
+                    // Eckverbindung: Eine glatte Fortsetzung ist nicht möglich, die Straße kommt gerade an
                     edx = cx0;
                     edz = cz0;
                     endInfo = "Ende: Ecke";
