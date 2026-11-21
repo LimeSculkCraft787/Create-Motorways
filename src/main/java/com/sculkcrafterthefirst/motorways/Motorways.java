@@ -28,9 +28,15 @@ public class Motorways {
             event.accept(ModItems.SINGLE_ROAD);
             event.accept(ModItems.DOUBLE_ROAD);
             event.accept(ModItems.ERASER);
+            // Markierungen (wie Pfeile)
             for (DeferredItem<Item> item : ModItems.MARKINGS.values()) {
                 event.accept(item);
             }
+            // Seitenlinien
+            for (DeferredItem<Item> item : ModItems.EDGE_LINES.values()) {
+                event.accept(item);
+            }
+            // Mittellinien
             for (DeferredItem<Item> item : ModItems.LINES.values()) {
                 event.accept(item);
             }
