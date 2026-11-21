@@ -90,7 +90,7 @@ public class RoadPreview {
 
         RoadPlanner.Plan plan = RoadPlanner.plan(mc.level, item.getWidth(), start,
                 tag.getDouble("DirX"), tag.getDouble("DirZ"), tag.getDouble("StartOff"),
-                end, look[0], look[1], loc.x, loc.z);
+                end, look[0], look[1], loc.x, loc.z, tag.getBoolean("Curves"));
         if (!plan.ok()) {
             player.displayClientMessage(Component.literal(plan.message()), true);
         }
