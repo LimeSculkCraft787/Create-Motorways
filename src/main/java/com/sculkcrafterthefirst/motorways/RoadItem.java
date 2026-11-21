@@ -1,5 +1,6 @@
 package com.sculkcrafterthefirst.motorways;
 
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -10,6 +11,7 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -53,6 +55,15 @@ public class RoadItem extends Item {
         } else {
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         }
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip,
+                                TooltipFlag flag) {
+        boolean curves = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
+                .copyTag().getBoolean("Curves");
+        tooltip.add(Component.literal(curves ? "Modus: Kurven" : "Modus: gerade"));
+        tooltip.add(Component.literal("Rechtsklick in die Luft: Modus wechseln"));
     }
 
     // Rechtsklick in die Luft: zwischen geraden Straßen und Kurven wechseln
