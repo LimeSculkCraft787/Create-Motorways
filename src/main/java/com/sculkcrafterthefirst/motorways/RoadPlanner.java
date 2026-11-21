@@ -10,6 +10,7 @@ public class RoadPlanner {
     public static final int DOUBLE = 11;
     public static final double LANE_OFFSET = (DOUBLE - SINGLE) / 2.0;
 
+    // message: bei fehlgeschlagenen Plänen der Grund, bei erfolgreichen eine Info zu Start und Ende
     public record Plan(boolean ok, String message, RoadCurve curve,
                        double sdx, double sdz, double edx, double edz, double so, double eo) {
     }
@@ -22,7 +23,7 @@ public class RoadPlanner {
     }
 
     private static Plan fail(String message) {
-        return new Plan(false, message, null, 0, 0, 0, 0, 0, 0);    
+        return new Plan(false, message, null, 0, 0, 0, 0, 0, 0);
     }
 
     private static List<RoadNodeBlockEntity.Arm> nodeArms(Level level, BlockPos pos) {
@@ -102,12 +103,12 @@ public class RoadPlanner {
         double chord = Math.sqrt(dx * dx + dz * dz);
         if (chord < 2) {
             return fail("Zu kurz");
-        }        
+        }
         int maxLength = Config.MAX_ROAD_LENGTH.get();
         if (Math.sqrt(start.distSqr(end)) > maxLength) {
             return fail("Zu weit entfernt (max. " + maxLength + " Blöcke)");
         }
-        
+
         boolean startExisting = level.getBlockState(start).is(ModBlocks.ROAD_NODE.get());
         boolean endExisting = level.getBlockState(end).is(ModBlocks.ROAD_NODE.get());
         if (!startExisting && !level.getBlockState(start).canBeReplaced()) {
@@ -130,16 +131,21 @@ public class RoadPlanner {
         double sdx = startDx;
         double sdz = startDz;
         double so = startOff;
+        String startInfo = startExisting ? "Start: fortgesetzt" : "Start: frei";
 
         // Eckverbindung: Passt die fortgesetzte Richtung nicht zur Strecke, geht die Straße gerade los
         if (startExisting && so == 0 && sdx * cx0 + sdz * cz0 < 0.2) {
             sdx = cx0;
             sdz = cz0;
+            startInfo = "Start: Ecke";
+        } else if (startExisting && so != 0) {
+            startInfo = "Start: Spur";
         }
 
         double edx = lookX;
         double edz = lookZ;
         double eo = 0;
+        String endInfo = endExisting ? "Ende: fortgesetzt" : "Ende: frei";
         if (endExisting) {
             Candidates ce = candidates(level, end, width);
             if (ce.incompatible()) {
@@ -159,10 +165,16 @@ public class RoadPlanner {
                 edz = bestArm.dz();
                 if (ce.lane()) {
                     eo = laneSide(bestArm, end, hitX, hitZ) * LANE_OFFSET;
-                } else if (best < 0.2) {
-                    // Eckverbindung: die Straße kommt gerade am Knoten an
+                    endInfo = "Ende: Spur";
+                } else if (best < 0.2 || (lookX * cx0 + lookZ * cz0 > 0.9 && best < 0.99)) {
+                    // Eckverbindung: Die Straße kommt gerade am Knoten an. Das passiert, wenn die alte Richtung
+                    // nicht passt oder wenn der Spieler entlang der neuen Straße schaut.
                     edx = cx0;
                     edz = cz0;
+                    endInfo = "Ende: Ecke";
+                } else {
+                    long deg = Math.round(Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, best)))));
+                    endInfo = "Ende: fortgesetzt (" + deg + "° Abweichung)";
                 }
             }
         }
@@ -200,6 +212,6 @@ public class RoadPlanner {
         if (curve.minRadius < width / 2.0 + 0.5) {
             return new Plan(false, "Kurve zu eng", curve, sdx, sdz, edx, edz, so, eo);
         }
-        return new Plan(true, "", curve, sdx, sdz, edx, edz, so, eo);
+        return new Plan(true, startInfo + ", " + endInfo, curve, sdx, sdz, edx, edz, so, eo);
     }
 }
