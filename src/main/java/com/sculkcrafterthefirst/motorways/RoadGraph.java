@@ -9,7 +9,7 @@ import java.util.PriorityQueue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
-// Sucht den kürzesten Weg über verbundene Zweispur-Straßen und legt Linien darüber
+// Sucht den kürzesten Weg über verbundene Straßen gleicher Breite und legt Linien darüber
 public class RoadGraph {
 
     // Ein vollständig durchlaufenes Straßenstück; forward = vom Besitzerknoten zum Zielknoten
@@ -33,18 +33,19 @@ public class RoadGraph {
         return level.getBlockEntity(pos) instanceof RoadNodeBlockEntity n ? n : null;
     }
 
-    private static boolean usable(RoadNodeBlockEntity.Road r) {
-        return r.width == RoadPlanner.DOUBLE && r.so == 0 && r.eo == 0;
+    // Nur Straßen derselben Breite ohne Spurversatz sind durchgehend befahrbar
+    private static boolean usable(RoadNodeBlockEntity.Road r, int width) {
+        return r.width == width && r.so == 0 && r.eo == 0;
     }
 
-    private static List<Edge> edges(Level level, BlockPos x) {
+    private static List<Edge> edges(Level level, BlockPos x, int width) {
         List<Edge> result = new ArrayList<>();
         RoadNodeBlockEntity xb = node(level, x);
         if (xb == null) {
             return result;
         }
         for (RoadNodeBlockEntity.Road r : xb.getRoads()) {
-            if (usable(r)) {
+            if (usable(r, width)) {
                 result.add(new Edge(r, xb, x, r.target, true, r.curve(x).length));
             }
         }
@@ -54,7 +55,7 @@ public class RoadGraph {
                 continue;
             }
             for (RoadNodeBlockEntity.Road r : sb.getRoads()) {
-                if (r.target.equals(x) && usable(r)) {
+                if (r.target.equals(x) && usable(r, width)) {
                     result.add(new Edge(r, sb, x, s, false, r.curve(s).length));
                 }
             }
@@ -65,6 +66,10 @@ public class RoadGraph {
     // Weg von Punkt aS auf Straße aRoad zu Punkt bS auf Straße bRoad (null, wenn nicht verbunden)
     public static Route find(Level level, RoadNodeBlockEntity aNode, RoadNodeBlockEntity.Road aRoad, double aS,
                              RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS) {
+        int width = aRoad.width;
+        if (bRoad.width != width) {
+            return null;
+        }
         BlockPos a1 = aNode.getBlockPos();
         BlockPos b1 = aRoad.target;
         BlockPos a2 = bNode.getBlockPos();
@@ -89,7 +94,7 @@ public class RoadGraph {
             if (++settled > 400) {
                 break;
             }
-            for (Edge e : edges(level, st.pos())) {
+            for (Edge e : edges(level, st.pos(), width)) {
                 if (e.road() == aRoad || e.road() == bRoad) {
                     continue;
                 }
@@ -131,36 +136,38 @@ public class RoadGraph {
         node.markingsChanged();
     }
 
-    // Legt die Linie über die ganze Strecke; gibt die Gesamtlänge zurück
+    // Legt die Linie (seitlicher Versatz lat) über die ganze Strecke; gibt die Gesamtlänge zurück
     public static double apply(LineType type, Route route,
                                RoadNodeBlockEntity aNode, RoadNodeBlockEntity.Road aRoad, double aS,
-                               RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS) {
+                               RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS,
+                               double lat) {
         double len1 = aRoad.curve(aNode.getBlockPos()).length;
         double len2 = bRoad.curve(bNode.getBlockPos()).length;
         double traveled;
 
         // Erste Straße: vom Klickpunkt bis zum Knoten
         if (route.exitAtOwner()) {
-            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, 0, aS, 0, true));
+            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, 0, aS, 0, true, lat));
             traveled = aS;
         } else {
-            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, aS, len1, 0, false));
+            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, aS, len1, 0, false, lat));
             traveled = len1 - aS;
         }
 
         // Straßen dazwischen, komplett
         for (Leg leg : route.legs()) {
             double len = leg.road().curve(leg.owner().getBlockPos()).length;
-            add(leg.owner(), leg.road(), new RoadNodeBlockEntity.Line(type, 0, len, traveled, !leg.forward()));
+            add(leg.owner(), leg.road(),
+                    new RoadNodeBlockEntity.Line(type, 0, len, traveled, !leg.forward(), lat));
             traveled += len;
         }
 
         // Letzte Straße: vom Knoten bis zum Klickpunkt
         if (route.enterAtOwner()) {
-            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, 0, bS, traveled, false));
+            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, 0, bS, traveled, false, lat));
             traveled += bS;
         } else {
-            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, bS, len2, traveled, true));
+            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, bS, len2, traveled, true, lat));
             traveled += len2 - bS;
         }
         return traveled;
