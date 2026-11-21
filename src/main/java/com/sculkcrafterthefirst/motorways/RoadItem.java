@@ -60,23 +60,23 @@ public class RoadItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip,
                                 TooltipFlag flag) {
-        boolean curves = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
-                .copyTag().getBoolean("Curves");
-        tooltip.add(Component.literal(curves ? "Modus: Kurven" : "Modus: gerade"));
+        boolean straight = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
+                .copyTag().getBoolean("Straight");
+        tooltip.add(Component.literal(straight ? "Modus: gerade Straßen" : "Modus: Kurven"));
         tooltip.add(Component.literal("Rechtsklick in die Luft: Modus wechseln"));
     }
 
-    // Rechtsklick in die Luft: zwischen geraden Straßen und Kurven wechseln
+    // Rechtsklick in die Luft: zwischen Kurven und geraden Straßen wechseln
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!level.isClientSide()) {
             CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-            boolean curves = !tag.getBoolean("Curves");
-            tag.putBoolean("Curves", curves);
+            boolean straight = !tag.getBoolean("Straight");
+            tag.putBoolean("Straight", straight);
             stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-            msg(player, curves ? "Modus: Kurven (die Blickrichtung bestimmt die Krümmung)"
-                    : "Modus: gerade Straßen");
+            msg(player, straight ? "Modus: gerade Straßen"
+                    : "Modus: Kurven (die Blickrichtung bestimmt die Krümmung)");
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
@@ -106,7 +106,7 @@ public class RoadItem extends Item {
         Vec3 loc = context.getClickLocation();
 
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        boolean curves = tag.getBoolean("Curves");
+        boolean curves = !tag.getBoolean("Straight");
 
         if (!tag.contains("StartX")) {
             // erster Klick
