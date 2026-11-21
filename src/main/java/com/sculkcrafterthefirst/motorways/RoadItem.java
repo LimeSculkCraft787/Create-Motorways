@@ -4,7 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -37,6 +39,37 @@ public class RoadItem extends Item {
         player.displayClientMessage(Component.literal(text), true);
     }
 
+    // Löscht nur den gemerkten Startpunkt, der Modus bleibt erhalten
+    private static void clearStart(ItemStack stack) {
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        tag.remove("StartX");
+        tag.remove("StartY");
+        tag.remove("StartZ");
+        tag.remove("DirX");
+        tag.remove("DirZ");
+        tag.remove("StartOff");
+        if (tag.isEmpty()) {
+            stack.remove(DataComponents.CUSTOM_DATA);
+        } else {
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        }
+    }
+
+    // Rechtsklick in die Luft: zwischen geraden Straßen und Kurven wechseln
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (!level.isClientSide()) {
+            CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+            boolean curves = !tag.getBoolean("Curves");
+            tag.putBoolean("Curves", curves);
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+            msg(player, curves ? "Modus: Kurven (die Blickrichtung bestimmt die Krümmung)"
+                    : "Modus: gerade Straßen");
+        }
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
@@ -50,7 +83,7 @@ public class RoadItem extends Item {
         ItemStack stack = context.getItemInHand();
 
         if (player.isShiftKeyDown()) {
-            stack.remove(DataComponents.CUSTOM_DATA);
+            clearStart(stack);
             msg(player, "Startpunkt gelöscht");
             return InteractionResult.SUCCESS;
         }
@@ -62,6 +95,7 @@ public class RoadItem extends Item {
         Vec3 loc = context.getClickLocation();
 
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        boolean curves = tag.getBoolean("Curves");
 
         if (!tag.contains("StartX")) {
             // erster Klick
@@ -75,16 +109,16 @@ public class RoadItem extends Item {
                 msg(player, anchor.message());
                 return InteractionResult.SUCCESS;
             }
-            CompoundTag t = new CompoundTag();
-            t.putInt("StartX", node.getX());
-            t.putInt("StartY", node.getY());
-            t.putInt("StartZ", node.getZ());
-            t.putDouble("DirX", anchor.dx());
-            t.putDouble("DirZ", anchor.dz());
-            t.putDouble("StartOff", anchor.offset());
-            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(t));
+            tag.putInt("StartX", node.getX());
+            tag.putInt("StartY", node.getY());
+            tag.putInt("StartZ", node.getZ());
+            tag.putDouble("DirX", anchor.dx());
+            tag.putDouble("DirZ", anchor.dz());
+            tag.putDouble("StartOff", anchor.offset());
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
             msg(player, "Startpunkt gesetzt: " + node.getX() + " " + node.getY() + " " + node.getZ()
-                    + " (Breite " + width + (anchor.offset() != 0 ? ", Spur der Doppelstraße" : "") + ")");
+                    + " (Breite " + width + (anchor.offset() != 0 ? ", Spur der Doppelstraße" : "")
+                    + ", " + (curves ? "Kurvenmodus" : "gerader Modus") + ")");
             return InteractionResult.SUCCESS;
         }
 
@@ -92,7 +126,7 @@ public class RoadItem extends Item {
         BlockPos startPos = new BlockPos(tag.getInt("StartX"), tag.getInt("StartY"), tag.getInt("StartZ"));
         RoadPlanner.Plan plan = RoadPlanner.plan(level, width, startPos,
                 tag.getDouble("DirX"), tag.getDouble("DirZ"), tag.getDouble("StartOff"),
-                node, look[0], look[1], loc.x, loc.z);
+                node, look[0], look[1], loc.x, loc.z, curves);
         if (!plan.ok()) {
             msg(player, plan.message());
             return InteractionResult.SUCCESS;
@@ -112,10 +146,10 @@ public class RoadItem extends Item {
             endBe.addIncoming(startPos);
         }
         RoadCollision.place(level, startPos, plan.curve(), width);
-        
+
         msg(player, "Straße gesetzt, Länge " + String.format("%.1f", plan.curve().length)
                 + " Blöcke (" + plan.message() + ")");
-        stack.remove(DataComponents.CUSTOM_DATA);
+        clearStart(stack);
         return InteractionResult.SUCCESS;
     }
 }
