@@ -112,8 +112,9 @@ public class RoadItem extends Item {
             endBe.addIncoming(startPos);
         }
         RoadCollision.place(level, startPos, plan.curve(), width);
-
-        msg(player, "Straße gesetzt, Länge " + String.format("%.1f", plan.curve().length) + " Blöcke");
+        
+        msg(player, "Straße gesetzt, Länge " + String.format("%.1f", plan.curve().length)
+                + " Blöcke (" + plan.message() + ")");
         stack.remove(DataComponents.CUSTOM_DATA);
         return InteractionResult.SUCCESS;
     }
