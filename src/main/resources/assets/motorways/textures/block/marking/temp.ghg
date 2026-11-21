@@ -1,6 +1,5 @@
-Sehr gut. Kannst du eine funktion hinzufügen, das wenn irgendeine create-schiene im bereich einer straße ist, die schiene non-solid zu machen (damit es keine glitches gibt beim darüberfahren mit Immersive Vehicles)? Ich weiß nicht ob das möglich ist, aber wenn ja wäre es supi.
+ROADMAP
 
-Außerdem eine Roadmap für später (keine feste Reihenfolge): 
 BUGS
 - [B-2026-0003-D] Bei einer Einmündung muss der Knoten am Scheitelpunkt (nennen wir ihn "P(err)") in beide Richtungen mit Straßen angeschlossen sein, damit die da anzuschließende Straße keine abweichende Rotation bei P(err) bekommt. Nicht unplayable, aber etwas aufwändiger.
 
