@@ -90,10 +90,10 @@ public class RoadPlanner {
         }
         return new Anchor(true, "", -bestArm.dx(), -bestArm.dz(), offset);
     }
-
+    
     public static Plan plan(Level level, int width, BlockPos start, double startDx, double startDz,
                             double startOff, BlockPos end, double lookX, double lookZ,
-                            double hitX, double hitZ) {
+                            double hitX, double hitZ, boolean curves) {
         if (start.equals(end)) {
             return fail("Start und Ende sind gleich");
         }
@@ -192,6 +192,20 @@ public class RoadPlanner {
         }
         double cx = qx / ql;
         double cz = qz / ql;
+
+        // Gerader Modus: alle Enden zeigen entlang der Strecke (Spuranschlüsse behalten ihre Richtung)
+        if (!curves) {
+            if (!(startExisting && so != 0)) {
+                sdx = cx;
+                sdz = cz;
+                startInfo = startExisting ? "Start: Ecke" : "Start: gerade";
+            }
+            if (!(endExisting && eo != 0)) {
+                edx = cx;
+                edz = cz;
+                endInfo = endExisting ? "Ende: Ecke" : "Ende: gerade";
+            }
+        }
 
         // Freie Enden werden gerade, wenn der Blick nahe an der Strecke liegt
         if (!startExisting && sdx * cx + sdz * cz > 0.9) {
