@@ -131,6 +131,12 @@ public class RoadPlanner {
         double sdz = startDz;
         double so = startOff;
 
+        // Eckverbindung: Passt die fortgesetzte Richtung nicht zur Strecke, geht die Straße gerade los
+        if (startExisting && so == 0 && sdx * cx0 + sdz * cz0 < 0.2) {
+            sdx = cx0;
+            sdz = cz0;
+        }
+
         double edx = lookX;
         double edz = lookZ;
         double eo = 0;
@@ -153,6 +159,10 @@ public class RoadPlanner {
                 edz = bestArm.dz();
                 if (ce.lane()) {
                     eo = laneSide(bestArm, end, hitX, hitZ) * LANE_OFFSET;
+                } else if (best < 0.2) {
+                    // Eckverbindung: die Straße kommt gerade am Knoten an
+                    edx = cx0;
+                    edz = cz0;
                 }
             }
         }
