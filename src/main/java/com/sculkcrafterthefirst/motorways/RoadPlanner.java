@@ -90,7 +90,8 @@ public class RoadPlanner {
         }
         return new Anchor(true, "", -bestArm.dx(), -bestArm.dz(), offset);
     }
-    
+
+    // curves = false: Straßen gehen immer gerade entlang der Strecke; true: die Blickrichtung bestimmt die Krümmung
     public static Plan plan(Level level, int width, BlockPos start, double startDx, double startDz,
                             double startOff, BlockPos end, double lookX, double lookZ,
                             double hitX, double hitZ, boolean curves) {
@@ -167,8 +168,7 @@ public class RoadPlanner {
                     eo = laneSide(bestArm, end, hitX, hitZ) * LANE_OFFSET;
                     endInfo = "Ende: Spur";
                 } else if (best < 0.2 || (lookX * cx0 + lookZ * cz0 > 0.9 && best < 0.99)) {
-                    // Eckverbindung: Die Straße kommt gerade am Knoten an. Das passiert, wenn die alte Richtung
-                    // nicht passt oder wenn der Spieler entlang der neuen Straße schaut.
+                    // Eckverbindung: Die Straße kommt gerade am Knoten an
                     edx = cx0;
                     edz = cz0;
                     endInfo = "Ende: Ecke";
