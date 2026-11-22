@@ -1,4 +1,4 @@
 {
   "parent": "minecraft:item/generated",
-  "textures": { "layer0": "motorways:block/marking/arrow_left_stretched" }
+  "textures": { "layer0": "motorways:item/marking/arrows/arrow_left_stretched_item" }
 }
