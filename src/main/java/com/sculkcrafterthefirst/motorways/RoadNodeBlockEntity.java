@@ -13,9 +13,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.Level;
 
 public class RoadNodeBlockEntity extends BlockEntity {
 
@@ -105,17 +105,18 @@ public class RoadNodeBlockEntity extends BlockEntity {
             t.putDouble("edz", edz);
             t.putDouble("so", so);
             t.putDouble("eo", eo);
+
             ListTag marks = new ListTag();
             for (Marking m : markings) {
                 CompoundTag mt = new CompoundTag();
                 mt.putString("type", m.type().id);
                 mt.putDouble("s", m.s());
                 mt.putDouble("lat", m.lat());
-                lt.putBoolean("rev", l.reverse());
-                lt.putDouble("lat", l.lat());
+                mt.putBoolean("rev", m.reverse());
                 marks.add(mt);
             }
             t.put("marks", marks);
+
             ListTag lineList = new ListTag();
             for (Line l : lines) {
                 CompoundTag lt = new CompoundTag();
@@ -124,7 +125,8 @@ public class RoadNodeBlockEntity extends BlockEntity {
                 lt.putDouble("s1", l.s1());
                 lt.putDouble("phase", l.phase());
                 lt.putBoolean("rev", l.reverse());
-                lineList.add(lt);    
+                lt.putDouble("lat", l.lat());
+                lineList.add(lt);
             }
             t.put("lines", lineList);
             return t;
@@ -134,6 +136,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
             Road road = new Road(BlockPos.of(t.getLong("target")), t.getInt("width"),
                     t.getDouble("sdx"), t.getDouble("sdz"), t.getDouble("edx"), t.getDouble("edz"),
                     t.getDouble("so"), t.getDouble("eo"));
+
             ListTag marks = t.getList("marks", Tag.TAG_COMPOUND);
             for (int i = 0; i < marks.size(); i++) {
                 CompoundTag mt = marks.getCompound(i);
@@ -143,6 +146,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
                             mt.getBoolean("rev")));
                 }
             }
+
             ListTag lineList = t.getList("lines", Tag.TAG_COMPOUND);
             for (int i = 0; i < lineList.size(); i++) {
                 CompoundTag lt = lineList.getCompound(i);
@@ -236,7 +240,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
     public void markingsChanged() {
         sync();
     }
-    
+
     @Override
     public void setLevel(Level level) {
         super.setLevel(level);
@@ -250,7 +254,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
             RoadAreas.unregister(level, worldPosition);
         }
     }
-    
+
     private void sync() {
         setChanged();
         if (level != null) {
@@ -324,7 +328,7 @@ public class RoadNodeBlockEntity extends BlockEntity {
         if (tag.contains("roads")) {
             ListTag list = tag.getList("roads", Tag.TAG_COMPOUND);
             for (int i = 0; i < list.size(); i++) {
-                roads.add(fload(list.getCompound(i)));
+                roads.add(Road.load(list.getCompound(i)));
             }
             for (long l : tag.getLongArray("incoming")) {
                 incoming.add(BlockPos.of(l));
