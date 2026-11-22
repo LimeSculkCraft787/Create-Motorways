@@ -18,18 +18,27 @@ public class MarkingTools {
 
     // Findet die Stelle der Straße, auf die der Spieler zielt (sonst null, mit Meldung)
     public static RoadLocator.Hit pick(Level level, Player player) {
+        return pick(level, player, false);
+    }
+
+    // quiet = true: keine Meldungen (für die Vorschau)
+    public static RoadLocator.Hit pick(Level level, Player player, boolean quiet) {
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
         Vec3 end = eye.add(look.scale(6.0));
         BlockHitResult hit = level.clip(new ClipContext(eye, end,
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         if (hit.getType() == HitResult.Type.MISS) {
-            msg(player, "Keine Straße in Reichweite");
+            if (!quiet) {
+                msg(player, "Keine Straße in Reichweite");
+            }
             return null;
         }
         RoadLocator.Hit road = RoadLocator.find(level, hit.getLocation());
         if (road == null) {
-            msg(player, "Hier ist keine Straße");
+            if (!quiet) {
+                msg(player, "Hier ist keine Straße");
+            }
             return null;
         }
 
