@@ -136,7 +136,8 @@ public class RoadGraph {
         node.markingsChanged();
     }
 
-    // Legt die Linie (seitlicher Versatz lat) über die ganze Strecke; gibt die Gesamtlänge zurück
+    // Legt die Linie über die ganze Strecke; gibt die Gesamtlänge zurück.
+    // lat: Seitenabstand aus Sicht der Zeichenrichtung (positiv = rechts, negativ = links)
     public static double apply(LineType type, Route route,
                                RoadNodeBlockEntity aNode, RoadNodeBlockEntity.Road aRoad, double aS,
                                RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS,
@@ -145,9 +146,9 @@ public class RoadGraph {
         double len2 = bRoad.curve(bNode.getBlockPos()).length;
         double traveled;
 
-        // Erste Straße: vom Klickpunkt bis zum Knoten
+        // Erste Straße: vom Klickpunkt bis zum Knoten (zum Besitzerknoten läuft man rückwärts)
         if (route.exitAtOwner()) {
-            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, 0, aS, 0, true, lat));
+            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, 0, aS, 0, true, -lat));
             traveled = aS;
         } else {
             add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, aS, len1, 0, false, lat));
@@ -157,8 +158,8 @@ public class RoadGraph {
         // Straßen dazwischen, komplett
         for (Leg leg : route.legs()) {
             double len = leg.road().curve(leg.owner().getBlockPos()).length;
-            add(leg.owner(), leg.road(),
-                    new RoadNodeBlockEntity.Line(type, 0, len, traveled, !leg.forward(), lat));
+            add(leg.owner(), leg.road(), new RoadNodeBlockEntity.Line(type, 0, len, traveled,
+                    !leg.forward(), leg.forward() ? lat : -lat));
             traveled += len;
         }
 
@@ -167,7 +168,7 @@ public class RoadGraph {
             add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, 0, bS, traveled, false, lat));
             traveled += bS;
         } else {
-            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, bS, len2, traveled, true, lat));
+            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, bS, len2, traveled, true, -lat));
             traveled += len2 - bS;
         }
         return traveled;
