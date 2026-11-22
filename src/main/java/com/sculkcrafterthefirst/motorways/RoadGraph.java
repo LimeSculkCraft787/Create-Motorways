@@ -19,6 +19,11 @@ public class RoadGraph {
     public record Route(boolean exitAtOwner, List<Leg> legs, boolean enterAtOwner) {
     }
 
+    // Ein Teilstück der Linie auf einer Straße; reverse = der Musterursprung liegt bei s1
+    public record Piece(RoadNodeBlockEntity node, RoadNodeBlockEntity.Road road,
+                        double s0, double s1, boolean reverse, double lat) {
+    }
+
     private record Edge(RoadNodeBlockEntity.Road road, RoadNodeBlockEntity owner,
                         BlockPos from, BlockPos to, boolean forward, double length) {
     }
@@ -136,40 +141,48 @@ public class RoadGraph {
         node.markingsChanged();
     }
 
-    // Legt die Linie über die ganze Strecke; gibt die Gesamtlänge zurück.
+    // Die Teilstücke einer Linie von Punkt aS auf aRoad nach bS auf bRoad, in Zeichenreihenfolge.
     // lat: Seitenabstand aus Sicht der Zeichenrichtung (positiv = rechts, negativ = links)
-    public static double apply(LineType type, Route route,
-                               RoadNodeBlockEntity aNode, RoadNodeBlockEntity.Road aRoad, double aS,
-                               RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS,
-                               double lat) {
+    public static List<Piece> pieces(Route route,
+                                     RoadNodeBlockEntity aNode, RoadNodeBlockEntity.Road aRoad, double aS,
+                                     RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS,
+                                     double lat) {
         double len1 = aRoad.curve(aNode.getBlockPos()).length;
         double len2 = bRoad.curve(bNode.getBlockPos()).length;
-        double traveled;
+        List<Piece> list = new ArrayList<>();
 
         // Erste Straße: vom Klickpunkt bis zum Knoten (zum Besitzerknoten läuft man rückwärts)
         if (route.exitAtOwner()) {
-            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, 0, aS, 0, true, -lat));
-            traveled = aS;
+            list.add(new Piece(aNode, aRoad, 0, aS, true, -lat));
         } else {
-            add(aNode, aRoad, new RoadNodeBlockEntity.Line(type, aS, len1, 0, false, lat));
-            traveled = len1 - aS;
+            list.add(new Piece(aNode, aRoad, aS, len1, false, lat));
         }
 
         // Straßen dazwischen, komplett
         for (Leg leg : route.legs()) {
             double len = leg.road().curve(leg.owner().getBlockPos()).length;
-            add(leg.owner(), leg.road(), new RoadNodeBlockEntity.Line(type, 0, len, traveled,
-                    !leg.forward(), leg.forward() ? lat : -lat));
-            traveled += len;
+            list.add(new Piece(leg.owner(), leg.road(), 0, len, !leg.forward(), leg.forward() ? lat : -lat));
         }
 
         // Letzte Straße: vom Knoten bis zum Klickpunkt
         if (route.enterAtOwner()) {
-            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, 0, bS, traveled, false, lat));
-            traveled += bS;
+            list.add(new Piece(bNode, bRoad, 0, bS, false, lat));
         } else {
-            add(bNode, bRoad, new RoadNodeBlockEntity.Line(type, bS, len2, traveled, true, -lat));
-            traveled += len2 - bS;
+            list.add(new Piece(bNode, bRoad, bS, len2, true, -lat));
+        }
+        return list;
+    }
+
+    // Legt die Linie über die ganze Strecke; gibt die Gesamtlänge zurück
+    public static double apply(LineType type, Route route,
+                               RoadNodeBlockEntity aNode, RoadNodeBlockEntity.Road aRoad, double aS,
+                               RoadNodeBlockEntity bNode, RoadNodeBlockEntity.Road bRoad, double bS,
+                               double lat) {
+        double traveled = 0;
+        for (Piece p : pieces(route, aNode, aRoad, aS, bNode, bRoad, bS, lat)) {
+            add(p.node(), p.road(),
+                    new RoadNodeBlockEntity.Line(type, p.s0(), p.s1(), traveled, p.reverse(), p.lat()));
+            traveled += p.s1() - p.s0();
         }
         return traveled;
     }
