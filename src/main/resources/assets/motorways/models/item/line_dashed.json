@@ -1,4 +1,4 @@
 {
   "parent": "minecraft:item/generated",
-  "textures": { "layer0": "motorways:item/marking/lines/line_dashed.png" }
+  "textures": { "layer0": "motorways:item/marking/lines/line_dashed" }
 }
