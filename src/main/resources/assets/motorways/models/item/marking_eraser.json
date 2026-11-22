@@ -1,4 +1,4 @@
   {
   "parent": "minecraft:item/generated",
-  "textures": { "layer0": "minecraft:item/brush" }
+  "textures": { "layer0": "motorways:item/marking_eraser" }
 }
