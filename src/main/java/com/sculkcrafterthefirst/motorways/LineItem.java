@@ -34,8 +34,12 @@ public class LineItem extends Item {
         this.edge = edge;
     }
 
+    public boolean isEdge() {
+        return edge;
+    }
+
     // Seitenmodus der Randlinien: 0 = beide Seiten, 1 = nur links, 2 = nur rechts
-    private static int getSide(ItemStack stack) {
+    public static int getSide(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag().getInt("Side");
     }
 
@@ -129,7 +133,7 @@ public class LineItem extends Item {
     }
 
     // Seitenabstände der Linien aus Sicht der Zeichenrichtung (positiv = rechts, negativ = links)
-    private double[] lats(int roadWidth, int side) {
+    public static double[] lats(boolean edge, int roadWidth, int side) {
         if (!edge) {
             return new double[] { 0.0 };
         }
@@ -194,7 +198,7 @@ public class LineItem extends Item {
         }
         double s0 = tag.getDouble("LineS");
         int side = edge ? tag.getInt("Side") : 0;
-        double[] lats = lats(startRoad.width, side);
+        double[] lats = lats(edge, startRoad.width, side);
         String sideInfo = edge ? " (" + sideName(side) + ")" : "";
 
         // Ende auf derselben Straße
