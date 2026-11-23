@@ -2,6 +2,7 @@ ROADMAP
 
 BUGS
 - [B-2026-0003-D] Bei einer Einmündung muss der Knoten am Scheitelpunkt (nennen wir ihn "P(err)") in beide Richtungen mit Straßen angeschlossen sein, damit die da anzuschließende Straße keine abweichende Rotation bei P(err) bekommt. Nicht unplayable, aber etwas aufwändiger.
+- [B-2026-0004-D] Das Inventar braucht lange zum Öffnen
 
 SUGGESTIONS
 - [S-2026-001-D] Seitenlinien
@@ -9,5 +10,9 @@ SUGGESTIONS
 - [S-2026-003-D] Mehrspurige Straßen
 - [S-2026-004-D] Betonstraßen
 - [S-2026-005-D] Internationale Markierungen (CH, GB, FR, usw.)
-- [S-2026-006-D] Haltelinien
+- [S-2026-006-D] Haltelinien und Zebrastreifen
 - [S-2026-007-D] Easter Eggs
+- [S-2026-008-D] Bordstein
+- [S-2026-009-D] Gullies
+- [S-2026-009-D] Road Bumps
+- [S-2026-010-D] Safety Barrier (Guardrail) Integration (Possibly TrafficCraft?)
